@@ -1,12 +1,13 @@
-'''
-Copyright (c) 2026 by hqwang, All Rights Reserved. 
+"""
+Copyright (c) 2026 by hqwang, All Rights Reserved.
 
 Software     : VScode
 Author       : hqwang
 Date         : 2026-01-31 13:10:09
-LastEditTime : 2026-01-31 13:10:15
-Description  : 
-'''
+LastEditTime : 2026-02-01 03:09:49
+Description  :
+"""
+
 from calibre.customize import InterfaceActionBase
 
 
@@ -30,9 +31,7 @@ class CalibrePluginTemplateBase(InterfaceActionBase):
 
     # 【关键】连接 UI 逻辑。格式：calibre_plugins.命名空间.模块名:类名
     # 这里的 'Link2Zotero' 必须与 .txt 文件中的别名一致
-    actual_plugin = (
-        "calibre_plugins.Link2Zotero.main:Link2ZoteroAction"
-    )
+    actual_plugin = "calibre_plugins.Link2Zotero.main:Link2ZoteroAction"
 
     def is_customizable(self):
         """是否允许用户在插件设置中进行配置"""
