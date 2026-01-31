@@ -127,21 +127,21 @@ class Link2ZoteroAction(InterfaceAction):
                     results.push(`[失败] {repr(title)}：${{e.toString()}}`);
                 }}
             }}"""
+            single_book_js = textwrap.dedent(single_book_js).strip()
             book_scripts.append(single_book_js)
 
         # 3. 合并所有脚本，构建完整的日志回传逻辑
         all_books_js = "\n".join(book_scripts)
+        all_books_js = textwrap.dedent(all_books_js).strip()
 
         final_js_code = f"""
-        (async () => {{
-            let results = ["🚀 Link2Zotero 开始批量导入...", "--------------------------"];
-            
-            {all_books_js}
-            
-            results.push("--------------------------");
-            results.push("🏁 处理完成！总计: {len(rows)} 本");
-            return results.join("\\n");
-        }})();
+        let results = ["🚀 Link2Zotero 开始批量导入...", "--------------------------"];
+        
+        {all_books_js}
+        
+        results.push("--------------------------");
+        results.push("🏁 处理完成！总计: {len(rows)} 本");
+        return results.join("\\n");
         """.strip()
         final_js_code = textwrap.dedent(final_js_code).strip()
 
