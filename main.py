@@ -58,72 +58,92 @@ class Link2ZoteroAction(InterfaceAction):
         if not rows:
             return error_dialog(self.gui, "错误", "请先选中至少一本书籍。", show=True)
 
-        # 2. 获取第一本选中书籍的元数据
-        book_id = self.gui.library_view.model().id(rows[0].row())
         db = self.gui.current_db.new_api
+        book_scripts = []
+        summary_titles = []
 
-        # 2. 读取元数据
-        metadata = db.get_metadata(book_id)
-        title = metadata.title
-        authors = metadata.authors  # 返回列表
-        published = (
-            metadata.pubdate.strftime("%Y-%m-%d") if metadata.pubdate else "未知日期"
-        )
-        publisher = metadata.publisher if metadata.publisher else "未知出版社"
-        language = "zh" if metadata.language == "zho" else metadata.language
-        timestamp = metadata.timestamp.strftime("%Y-%m-%d %H:%M:%S")
-        identifiers = (
-            (metadata.identifiers.get("isbn") or "")
-            if metadata.identifiers
-            else "无标识符"
-        )
-        abstract_html = metadata.comments if metadata.comments else "无摘要"
-        converter = html2text.HTML2Text()
-        converter.ignore_links = True  # 忽略链接
-        abstract_text = converter.handle(abstract_html).strip()
+        # 2. 遍历每一本书
+        for row in rows:
+            book_id = self.gui.library_view.model().id(row.row())
+            metadata = db.get_metadata(book_id)
+            title = metadata.title
+            summary_titles.append(title)
 
-        formats = db.formats(book_id)
-
-        if "PDF" not in formats:
-            return error_dialog(
-                self.gui,
-                "错误",
-                "所选书籍不包含 PDF 格式，请手动处理。",
-                show=True,
+            # --- 元数据处理 ---
+            authors = metadata.authors  # 返回列表
+            published = (
+                metadata.pubdate.strftime("%Y-%m-%d")
+                if metadata.pubdate
+                else "未知日期"
             )
+            publisher = metadata.publisher if metadata.publisher else "未知出版社"
+            language = "zh" if metadata.language == "zho" else metadata.language
+            timestamp = metadata.timestamp.strftime("%Y-%m-%d %H:%M:%S")
+            identifiers = (
+                (metadata.identifiers.get("isbn") or "")
+                if metadata.identifiers
+                else "无标识符"
+            )
+            abstract_html = metadata.comments if metadata.comments else "无摘要"
+            converter = html2text.HTML2Text()
+            converter.ignore_links = True  # 忽略链接
+            abstract_text = converter.handle(abstract_html).strip()
 
-        file_path = db.format_abspath(book_id, "PDF")
+            # --- 文件格式和附件路径获取 ---
+            formats = db.formats(book_id)
 
-        # 3. 生成 JavaScript 代码
-        js_code = f"""
-        // Link2Zotero 自动化脚本
-        var item = new Zotero.Item('book');
-        item.setField('title', {repr(title)});
-        item.setCreators({repr(self.create_authors_js(authors))});
-        item.setField('date', {repr(published)});
-        item.setField('publisher', {repr(publisher)});
-        item.setField('language', {repr(language)});
-        item.setField('ISBN', {repr(identifiers)});
-        item.setField('abstractNote', {repr(abstract_text)});
-        var itemID = await item.saveTx();
+            if "PDF" not in formats:
+                # 如果没有PDF，在日志中记录跳过
+                skip_script = (
+                    f"results.push(`[跳过] 书籍 {repr(title)} 没有 PDF 格式`);"
+                )
+                book_scripts.append(skip_script)
+                continue
 
-        try {{
-            await Zotero.Attachments.linkFromFile({{
-                file: {repr(file_path)},
-                parentItemID: item.id,
-                contentType: 'application/pdf'
-            }});
-            const now = new Date();
-            const time = now.toLocaleTimeString()
-            return `[${{time}}] Link2Zotero：1.书籍 {repr(title)} 条目创建成功；2.PDF 链接成功 🎉🎉🎉`;
-        }} catch (e) {{
-            return "错误：" + e.toString();
-        }}
+            file_path = db.format_abspath(book_id, "PDF")
 
-        alert('Link2Zotero 脚本执行完成，已添加书籍到 Zotero。');
-        """
+            # --- 生成单本书的 JS 片段 ---
+            # 使用 {} 块级作用域防止变量冲突
+            single_book_js = f"""
+            {{
+                try {{
+                    let item = new Zotero.Item('book');
+                    item.setField('title', {repr(title)});
+                    item.setCreators({repr(self.create_authors_js(authors))});
+                    item.setField('date', {repr(published)});
+                    item.setField('publisher', {repr(publisher)});
+                    item.setField('language', {repr(language)});
+                    item.setField('ISBN', {repr(identifiers)});
+                    item.setField('abstractNote', {repr(abstract_text)});
+                    let itemID = await item.saveTx();
 
-        js_code = textwrap.dedent(js_code).strip()
+                    await Zotero.Attachments.linkFromFile({{
+                        file: {repr(file_path)},
+                        parentItemID: itemID,
+                        contentType: 'application/pdf'
+                    }});
+                    results.push(`[成功] ${{new Date().toLocaleTimeString()}}：{repr(title)} 已链接`);
+                }} catch (e) {{
+                    results.push(`[失败] {repr(title)}：${{e.toString()}}`);
+                }}
+            }}"""
+            single_book_js = textwrap.dedent(single_book_js).strip()
+            book_scripts.append(single_book_js)
+
+        # 3. 合并所有脚本，构建完整的日志回传逻辑
+        all_books_js = "\n".join(book_scripts)
+        all_books_js = textwrap.dedent(all_books_js).strip()
+
+        final_js_code = f"""
+        let results = ["🚀 Link2Zotero 开始批量导入...", "--------------------------"];
+        
+        {all_books_js}
+        
+        results.push("--------------------------");
+        results.push("🏁 处理完成！总计: {len(rows)} 本");
+        return results.join("\\n");
+        """.strip()
+        final_js_code = textwrap.dedent(final_js_code).strip()
 
         # info_dialog(
         #     self.gui,
@@ -132,8 +152,13 @@ class Link2ZoteroAction(InterfaceAction):
         #     show=True,
         # )
 
-        # 5. 弹出自定义对话框，展示代码并提供复制按钮
-        self.show_copy_dialog(js_code, title)
+        # 4. 弹出对话框（显示第一本书名作为标题，或显示选中数量）
+        dialog_title = (
+            summary_titles[0]
+            if len(summary_titles) == 1
+            else f"批量处理 {len(summary_titles)} 本书"
+        )
+        self.show_copy_dialog(final_js_code, dialog_title)
 
     def show_copy_dialog(self, code, title):
         """
