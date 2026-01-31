@@ -8,8 +8,6 @@ LastEditTime : 2026-01-31 13:15:17
 Description  :
 """
 
-import textwrap
-
 import html2text
 from calibre.gui2 import error_dialog
 from calibre.gui2.actions import InterfaceAction
@@ -49,7 +47,18 @@ class Link2ZoteroAction(InterfaceAction):
         # 当用户点击工具栏按钮时，执行 self.run_action 方法
         self.qaction.triggered.connect(self.run_action)
 
+    def get_js_template(self, template):
+        """读取插件ZIP包内的 JS 模板文件"""
+        content = self.load_resources([template])[template]
+        return content.decode("utf-8")
+
     def run_action(self):
+        # error_dialog(
+        #     self.gui,
+        #     "调试",
+        #     "啊士大夫萨芬仅仅是",
+        #     show=True,
+        # )
         """
         Link2Zotero 核心业务逻辑
         """
@@ -103,54 +112,42 @@ class Link2ZoteroAction(InterfaceAction):
             file_path = db.format_abspath(book_id, "PDF")
 
             # --- 生成单本书的 JS 片段 ---
-            # 使用 {} 块级作用域防止变量冲突
-            single_book_js = f"""
-            {{
-                try {{
-                    let item = new Zotero.Item('book');
-                    item.setField('title', {repr(title)});
-                    item.setCreators({repr(self.create_authors_js(authors))});
-                    item.setField('date', {repr(published)});
-                    item.setField('publisher', {repr(publisher)});
-                    item.setField('language', {repr(language)});
-                    item.setField('ISBN', {repr(identifiers)});
-                    item.setField('abstractNote', {repr(abstract_text)});
-                    let itemID = await item.saveTx();
+            single_book_js_template = self.get_js_template("single_book_js_template.js")
+            single_book_js_code = single_book_js_template.replace(
+                "__TITLE__", repr(title)
+            )
+            single_book_js_code = single_book_js_code.replace(
+                "__AUTHORS__", repr(self.create_authors_js(authors))
+            )
+            single_book_js_code = single_book_js_code.replace(
+                "__PUBLISHED__", repr(published)
+            )
+            single_book_js_code = single_book_js_code.replace(
+                "__PUBLISHER__", repr(publisher)
+            )
+            single_book_js_code = single_book_js_code.replace(
+                "__LANGUAGE__", repr(language)
+            )
+            single_book_js_code = single_book_js_code.replace(
+                "__IDENTIFIERS__", repr(identifiers)
+            )
+            single_book_js_code = single_book_js_code.replace(
+                "__ABSTRACT_TEXT__", repr(abstract_text)
+            )
+            single_book_js_code = single_book_js_code.replace(
+                "__FILE_PATH__", repr(file_path)
+            )
 
-                    await Zotero.Attachments.linkFromFile({{
-                        file: {repr(file_path)},
-                        parentItemID: itemID,
-                        contentType: 'application/pdf'
-                    }});
-                    results.push(`[成功] ${{new Date().toLocaleTimeString()}}：{repr(title)} 已链接`);
-                }} catch (e) {{
-                    results.push(`[失败] {repr(title)}：${{e.toString()}}`);
-                }}
-            }}"""
-            single_book_js = textwrap.dedent(single_book_js).strip()
-            book_scripts.append(single_book_js)
+            # single_book_js = textwrap.dedent(single_book_js).strip()
+            book_scripts.append(single_book_js_code)
 
         # 3. 合并所有脚本，构建完整的日志回传逻辑
         all_books_js = "\n".join(book_scripts)
-        all_books_js = textwrap.dedent(all_books_js).strip()
+        # all_books_js = textwrap.dedent(all_books_js).strip()
 
-        final_js_code = f"""
-        let results = ["🚀 Link2Zotero 开始批量导入...", "--------------------------"];
-        
-        {all_books_js}
-        
-        results.push("--------------------------");
-        results.push("🏁 处理完成！总计: {len(rows)} 本");
-        return results.join("\\n");
-        """.strip()
-        final_js_code = textwrap.dedent(final_js_code).strip()
-
-        # info_dialog(
-        #     self.gui,
-        #     "生成的 JavaScript 代码",
-        #     js_code,
-        #     show=True,
-        # )
+        final_js_template = self.get_js_template("final_js_template.js")
+        final_js_code = final_js_template.replace("__ALL_BOOKS_JS__", all_books_js)
+        final_js_code = final_js_code.replace("__LEN_ROWS__", str(len(rows)))
 
         # 4. 弹出对话框（显示第一本书名作为标题，或显示选中数量）
         dialog_title = (
@@ -176,7 +173,7 @@ class Link2ZoteroAction(InterfaceAction):
         # 代码展示框
         text_edit = QTextEdit(d, minimumWidth=600, minimumHeight=400)
         text_edit.setPlainText(code)
-        text_edit.setReadOnly(False)
+        text_edit.setReadOnly(True)
         layout.addWidget(text_edit)
 
         # 复制并关闭按钮
