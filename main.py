@@ -10,9 +10,9 @@ Description  :
 
 import html2text
 from calibre.gui2 import error_dialog
-from calibre.gui2.actions import InterfaceAction
+from calibre.gui2.actions import InterfaceAction, menu_action_unique_name
 from PyQt5.QtWidgets import QApplication
-from qt.core import QDialog, QLabel, QPushButton, QTextEdit, QVBoxLayout
+from qt.core import QDialog, QLabel, QMenu, QPushButton, QTextEdit, QVBoxLayout
 
 
 class Link2ZoteroAction(InterfaceAction):
@@ -27,7 +27,7 @@ class Link2ZoteroAction(InterfaceAction):
     # 注意：这里的图标路径是相对于插件包根目录的默认位置
     action_spec = (
         "Link2Zotero",
-        "images/link_icon_142996.png",
+        "images/link_icon_2.png",
         "点击执行 Link2Zotero 插件功能",
         None,
     )
@@ -40,19 +40,67 @@ class Link2ZoteroAction(InterfaceAction):
         # get_icons 是 Calibre 内置函数，专门从插件 zip 包中提取图片
         # 参数 1: images 文件夹下的文件名
         # 参数 2: 该图标在内存中的唯一标识字符串
-        icon = get_icons("images/link_icon_142996.png", "calibre_link2zotero_icon")
-        self.qaction.setIcon(icon)
+        icon_link = get_icons("images/icon_link_2.png", "calibre_link2zotero_icon_1")
+        icon_calendar = get_icons(
+            "images/icon_calendar.png", "calibre_link2zotero_icon_2"
+        )
+        self.qaction.setIcon(icon_link)
+
+        # Setup menu
+        self.menu = QMenu()
+        self.qaction.setMenu(self.menu)
+
+        self.add_menu(
+            _("Step 1: Link Book's PDFs to Zotero"),
+            icon_link,
+            _("Configure No Trans"),
+            self.generate_zotero_import_script,
+        )
+
+        self.add_menu(
+            _('Step 2: Apply Book’s "timestamp" to Zotero'),
+            icon_calendar,
+            _("Configure No Trans"),
+            self.sync_timestamp,
+        )
 
         # --- 2. 绑定点击事件 ---
-        # 当用户点击工具栏按钮时，执行 self.run_action 方法
-        self.qaction.triggered.connect(self.run_action)
+        # 当用户点击工具栏按钮时，执行 self.generate_zotero_import_script 方法
+        self.qaction.triggered.connect(self.generate_zotero_import_script)
+
+    def add_menu(self, text, icon, tooltip, action):
+        uni_name = menu_action_unique_name(self, text)
+        action = self.create_menu_action(
+            menu=self.menu,
+            unique_name=uni_name,
+            text=text,
+            icon=icon,
+            description=tooltip,
+            triggered=action,
+        )
+        self.menu.addAction(action)
+        return action
+
+    def sync_timestamp(self):
+        rows = self.gui.library_view.selectionModel().selectedRows()
+        if not rows:
+            return error_dialog(self.gui, "错误", "请先选中至少一本书籍。", show=True)
+
+        db = self.gui.current_db.new_api
+
+        error_dialog(
+            self.gui,
+            "调试",
+            db.field_for("#created", 11).strftime("%Y-%m-%d %H:%M:%S"),
+            show=True,
+        )
 
     def get_js_template(self, template):
         """读取插件ZIP包内的 JS 模板文件"""
         content = self.load_resources([template])[template]
         return content.decode("utf-8")
 
-    def run_action(self):
+    def generate_zotero_import_script(self):
         # error_dialog(
         #     self.gui,
         #     "调试",
@@ -87,7 +135,7 @@ class Link2ZoteroAction(InterfaceAction):
             )
             publisher = metadata.publisher if metadata.publisher else "未知出版社"
             language = "zh" if metadata.language == "zho" else metadata.language
-            timestamp = metadata.timestamp.strftime("%Y-%m-%d %H:%M:%S")
+            timestamp = db.field_for("#created", book_id).strftime("%Y-%m-%d %H:%M:%S")
             identifiers = (
                 (metadata.identifiers.get("isbn") or "")
                 if metadata.identifiers
@@ -136,6 +184,9 @@ class Link2ZoteroAction(InterfaceAction):
             )
             single_book_js_code = single_book_js_code.replace(
                 "__FILE_PATH__", repr(file_path)
+            )
+            single_book_js_code = single_book_js_code.replace(
+                "__TIMESTAMP__", repr(timestamp)
             )
 
             # single_book_js = textwrap.dedent(single_book_js).strip()
