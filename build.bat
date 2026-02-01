@@ -1,6 +1,8 @@
 @echo off
 setlocal
 
+:: 注意：插件第一次最好以手动安装的方式导入calibre，并且，更改压缩包名字相当于第一次安装插件
+
 :: 设置生成的压缩包名称
 set PLUGIN_NAME="Link To Zotero.zip"
 
