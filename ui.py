@@ -12,8 +12,8 @@ from calibre.gui2 import error_dialog
 from calibre.gui2.actions import InterfaceAction, menu_action_unique_name
 from calibre_plugins.link_to_zotero.common_utils import (
     convert_html_to_text,
-    create_authors_js,
     get_js_template,
+    simple_name_parser,
 )
 from PyQt5.QtWidgets import QApplication
 from qt.core import QDialog, QLabel, QMenu, QPushButton, QTextEdit, QVBoxLayout
@@ -178,7 +178,7 @@ class LinkToZoteroAction(InterfaceAction):
                 "__TITLE__", repr(title)
             )
             single_book_js_code = single_book_js_code.replace(
-                "__AUTHORS__", repr(create_authors_js(authors))
+                "__AUTHORS__", repr(simple_name_parser(authors))
             )
             single_book_js_code = single_book_js_code.replace(
                 "__PUBLISHED__", repr(published)
