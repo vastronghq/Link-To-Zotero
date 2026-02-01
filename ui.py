@@ -129,12 +129,9 @@ class LinkToZoteroAction(InterfaceAction):
 
             # --- 元数据处理 ---
             authors = metadata.authors  # 返回列表
-            published = (
-                metadata.pubdate.strftime("%Y-%m-%d")
-                if metadata.pubdate
-                else "未知日期"
-            )
-            publisher = metadata.publisher if metadata.publisher else "未知出版社"
+            res = metadata.pubdate.strftime("%Y-%m-%d") if metadata.pubdate else ""
+            published = res if res[:2] in ["18", "19", "20", "21"] else ""
+            publisher = metadata.publisher if metadata.publisher else ""
             language = "zh" if metadata.language == "zho" else metadata.language
             timestamp = (
                 db.field_for("#created", book_id).strftime("%Y-%m-%d %H:%M:%S")
@@ -142,12 +139,11 @@ class LinkToZoteroAction(InterfaceAction):
                 else ""
             )
             identifiers = (
-                (metadata.identifiers.get("isbn") or "")
-                if metadata.identifiers
-                else "无标识符"
+                (metadata.identifiers.get("isbn") or "") if metadata.identifiers else ""
             )
-            abstract_html = metadata.comments if metadata.comments else "无摘要"
-            abstract_text = convert_html_to_text(abstract_html)
+            abstract_text = (
+                convert_html_to_text(metadata.comments) if metadata.comments else ""
+            )
 
             # --- 文件格式和附件路径获取 ---
             formats = db.formats(book_id)
