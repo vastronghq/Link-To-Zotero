@@ -2,7 +2,7 @@
 setlocal
 
 :: 设置生成的压缩包名称
-set PLUGIN_NAME=Link2Zotero.zip
+set PLUGIN_NAME="Link To Zotero.zip"
 
 :: 插件目录（发现只要压缩包移动到插件目录即可，不用非得在软件中安装）
 set TARGET_DIR=D:\Portable\Calibre Portable\Calibre Settings\plugins
@@ -26,7 +26,7 @@ echo [2/5] Packaging plugin files...
 :: -a 代表自动处理压缩格式
 :: -c 代表创建
 :: -f 代表指定文件名
-tar -a -c -f %PLUGIN_NAME% __init__.py main.py plugin-import-name-Link2Zotero.txt images final_js_template.js single_book_js_template.js
+tar -a -c -f %PLUGIN_NAME% __init__.py main.py plugin-import-name-link_to_zotero.txt images final_js_template.js single_book_js_template.js common_utils.py
 
 echo [3/5] Moving plugin to Calibre plugins directory...
 if not exist "%TARGET_DIR%" (

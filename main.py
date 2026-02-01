@@ -13,15 +13,17 @@ from calibre.gui2 import error_dialog
 from calibre.gui2.actions import InterfaceAction, menu_action_unique_name
 from PyQt5.QtWidgets import QApplication
 from qt.core import QDialog, QLabel, QMenu, QPushButton, QTextEdit, QVBoxLayout
+from calibre_plugins.link_to_zotero.common_utils import add
 
+add()
 
-class Link2ZoteroAction(InterfaceAction):
+class LinkToZoteroAction(InterfaceAction):
     """
     插件的 UI 类，控制工具栏按钮的行为。
     """
 
     # 内部引用名称，建议与类名相关联
-    name = "Link2ZoteroAction"
+    name = "Link To Zotero"
 
     # 定义动作规范：(默认按钮文本, 图标路径, 悬浮提示, 快捷键)
     # 注意：这里的图标路径是相对于插件包根目录的默认位置
@@ -108,7 +110,7 @@ class Link2ZoteroAction(InterfaceAction):
         #     show=True,
         # )
         """
-        Link2Zotero 核心业务逻辑
+        Link To Zotero 核心业务逻辑
         """
         # 1. 获取选中的书籍 ID
         rows = self.gui.library_view.selectionModel().selectedRows()
@@ -135,7 +137,7 @@ class Link2ZoteroAction(InterfaceAction):
             )
             publisher = metadata.publisher if metadata.publisher else "未知出版社"
             language = "zh" if metadata.language == "zho" else metadata.language
-            timestamp = db.field_for("#created", book_id).strftime("%Y-%m-%d %H:%M:%S")
+            timestamp = db.field_for("#created", book_id).strftime("%Y-%m-%d %H:%M:%S") if db.field_for("#created", book_id).strftime("%Y-%m-%d %H:%M:%S") else ""
             identifiers = (
                 (metadata.identifiers.get("isbn") or "")
                 if metadata.identifiers
