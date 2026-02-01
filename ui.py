@@ -30,7 +30,7 @@ class LinkToZoteroAction(InterfaceAction):
     # 定义动作规范：(默认按钮文本, 图标路径, 悬浮提示, 快捷键)
     # 注意：这里的图标路径是相对于插件包根目录的默认位置
     action_spec = (
-        "Link2Zotero",
+        "Link To Zotero",
         "images/link_icon_2.png",
         "点击执行 Link2Zotero 插件功能",
         None,
@@ -55,7 +55,7 @@ class LinkToZoteroAction(InterfaceAction):
         self.qaction.setMenu(self.menu)
 
         self.add_menu(
-            _("Step 1: Link Book's PDFs to Zotero"),
+            _("Step 1: Link Book's PDF to Zotero"),
             icon_link,
             _("Configure No Trans"),
             self.generate_zotero_import_script,
