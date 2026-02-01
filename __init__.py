@@ -31,7 +31,7 @@ class CalibrePluginTemplateBase(InterfaceActionBase):
 
     # 【关键】连接 UI 逻辑。格式：calibre_plugins.命名空间.模块名:类名
     # 这里的 'link_to_zotero' 必须与 .txt 文件中的别名一致
-    actual_plugin = "calibre_plugins.link_to_zotero.main:LinkToZoteroAction"
+    actual_plugin = "calibre_plugins.link_to_zotero.ui:LinkToZoteroAction"
 
     def is_customizable(self):
         """是否允许用户在插件设置中进行配置"""
