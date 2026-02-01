@@ -14,7 +14,27 @@ try {
     parentItemID: itemID,
     contentType: 'application/pdf',
   });
-  results.push(`[成功] ${new Date().toLocaleTimeString()}：__TITLE__ 已链接`);
+
+  // 1. 待修改的item
+  let idsToUpdate = [itemID];
+
+  // 2. 获取并包含所有附件的 ID (确保附件时间也被修正)
+  let itemObj = Zotero.Items.get(itemID);
+  let attachments = itemObj.getAttachments();
+  if (attachments.length > 0) {
+    idsToUpdate.push(...attachments);
+  }
+  // 3. 批量更新数据库
+  for (let id of idsToUpdate) {
+    await Zotero.DB.queryAsync('UPDATE items SET dateAdded = ?, dateModified = ? WHERE itemID = ?', [
+      __TIMESTAMP__,
+      __TIMESTAMP__,
+      id,
+    ]);
+  }
+  // 4. 核心：通知 UI 刷新，这样你就不用等下一本书导入了
+  Zotero.Notifier.trigger('modify', 'item', idsToUpdate);
+  results.push(`✅ ${new Date().toLocaleTimeString()} __TITLE__ itemID:${itemID} 已导入并链接`);
 } catch (e) {
-  results.push(`[失败] __TITLE__：${e.toString()}`);
+  results.push(`❌ __TITLE__：${e.toString()}`);
 }
