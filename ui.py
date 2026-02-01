@@ -32,7 +32,7 @@ class LinkToZoteroAction(InterfaceAction):
     action_spec = (
         "Link To Zotero",
         "images/link_icon_2.png",
-        "点击执行 Link2Zotero 插件功能",
+        "点击执行 Link To Zotero 插件功能",
         None,
     )
 
@@ -44,11 +44,13 @@ class LinkToZoteroAction(InterfaceAction):
         # get_icons 是 Calibre 内置函数，专门从插件 zip 包中提取图片
         # 参数 1: images 文件夹下的文件名
         # 参数 2: 该图标在内存中的唯一标识字符串
-        icon_link = get_icons("images/icon_link_2.png", "calibre_link2zotero_icon_1")
-        icon_calendar = get_icons(
-            "images/icon_calendar.png", "calibre_link2zotero_icon_2"
+        icon_interface = get_icons(
+            "images/icon_2.png", "calibre_link_to_zotero_icon_interface"
         )
-        self.qaction.setIcon(icon_link)
+        icon_menu_2 = get_icons(
+            "images/icon_3.png", "calibre_link_to_zotero_icon_menu_2"
+        )
+        self.qaction.setIcon(icon_interface)
 
         # Setup menu
         self.menu = QMenu()
@@ -56,21 +58,21 @@ class LinkToZoteroAction(InterfaceAction):
 
         self.add_menu(
             _("Step 1: Link Book's PDF to Zotero"),
-            icon_link,
+            icon_interface,
             _("Configure No Trans"),
-            self.generate_zotero_import_script,
+            self.generate_zotero_script,
         )
 
         self.add_menu(
             _('Step 2: Apply Book’s "timestamp" to Zotero'),
-            icon_calendar,
+            icon_menu_2,
             _("Configure No Trans"),
             self.sync_timestamp,
         )
 
         # --- 2. 绑定点击事件 ---
-        # 当用户点击工具栏按钮时，执行 self.generate_zotero_import_script 方法
-        self.qaction.triggered.connect(self.generate_zotero_import_script)
+        # 当用户点击工具栏按钮时，执行 self.generate_zotero_script 方法
+        self.qaction.triggered.connect(self.generate_zotero_script)
 
     def add_menu(self, text, icon, tooltip, action):
         uni_name = menu_action_unique_name(self, text)
@@ -99,7 +101,7 @@ class LinkToZoteroAction(InterfaceAction):
             show=True,
         )
 
-    def generate_zotero_import_script(self):
+    def generate_zotero_script(self):
         # error_dialog(
         #     self.gui,
         #     "调试",
@@ -144,6 +146,7 @@ class LinkToZoteroAction(InterfaceAction):
                 if metadata.identifiers
                 else "无标识符"
             )
+            abstract_html = metadata.comments if metadata.comments else "无摘要"
             abstract_text = convert_html_to_text(abstract_html)
 
             # --- 文件格式和附件路径获取 ---
@@ -198,7 +201,7 @@ class LinkToZoteroAction(InterfaceAction):
         all_books_js = "\n".join(book_scripts)
         # all_books_js = textwrap.dedent(all_books_js).strip()
 
-        final_js_template = self.get_js_template("final_js_template.js")
+        final_js_template = get_js_template(self, "final_js_template.js")
         final_js_code = final_js_template.replace("__ALL_BOOKS_JS__", all_books_js)
         final_js_code = final_js_code.replace("__LEN_ROWS__", str(len(rows)))
 
@@ -215,7 +218,7 @@ class LinkToZoteroAction(InterfaceAction):
         创建一个简单的对话框来显示生成的代码
         """
         d = QDialog(self.gui)
-        d.setWindowTitle(f"Link2Zotero - {title}")
+        d.setWindowTitle(f"Link To Zotero - {title}")
         layout = QVBoxLayout()
         d.setLayout(layout)
 
