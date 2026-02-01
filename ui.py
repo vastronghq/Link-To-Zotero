@@ -74,6 +74,17 @@ class LinkToZoteroAction(InterfaceAction):
         # 当用户点击工具栏按钮时，执行 self.generate_zotero_script 方法
         self.qaction.triggered.connect(self.generate_zotero_script)
 
+        db = self.gui.current_db.new_api
+        if "#in_zotero" not in db.field_metadata.custom_field_keys():
+            db.create_custom_column(
+                label="in_zotero",  # 查阅名称 (自动加#)
+                name="In Zotero",  # 列标题
+                datatype="bool",  # 数据类型：datatype: 'text', 'bool', 'int', 'float', 'rating', 'datetime', 'series', 'comments'
+                is_multiple=False,  # 是否多值
+                editable=True,  # 是否可编辑
+                display={},  # 额外显示配置
+            )
+
     def add_menu(self, text, icon, tooltip, action):
         uni_name = menu_action_unique_name(self, text)
         action = self.create_menu_action(
@@ -102,12 +113,6 @@ class LinkToZoteroAction(InterfaceAction):
         )
 
     def generate_zotero_script(self):
-        # error_dialog(
-        #     self.gui,
-        #     "调试",
-        #     "啊士大夫萨芬仅仅是",
-        #     show=True,
-        # )
         """
         Link To Zotero 核心业务逻辑
         """
@@ -155,10 +160,13 @@ class LinkToZoteroAction(InterfaceAction):
             if "PDF" not in formats:
                 # 如果没有PDF，在日志中记录跳过
                 skip_script = (
-                    f"results.push(`[跳过] 书籍 {repr(title)} 没有 PDF 格式`);"
+                    f"results.push(`[跳过] in_书籍 {repr(title)} 没有 PDF 格式`);"
                 )
                 book_scripts.append(skip_script)
+                db.set_field("#in_zotero", {book_id: False})
                 continue
+
+            db.set_field("#in_zotero", {book_id: True})
 
             file_path = db.format_abspath(book_id, "PDF")
 
