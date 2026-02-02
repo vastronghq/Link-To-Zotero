@@ -1,14 +1,16 @@
 let results = ['🚀 Link2Zotero 开始批量导入...', '--------------------------'];
-let succeed_ids = [];
+let succeed_book_ids = [];
+let failed_book_ids = [];
 
 __ALL_BOOKS_JS__;
 
-let sync_status = {
+let feedback = {
   source: 'Link To Zotero',
-  itemIDs: succeed_ids,
+  succeed_book_ids: succeed_book_ids,
+  failed_book_ids: failed_book_ids,
 };
 
-Zotero.Utilities.Internal.copyTextToClipboard(JSON.stringify(sync_status));
+Zotero.Utilities.Internal.copyTextToClipboard(JSON.stringify(feedback));
 
 results.push('--------------------------');
 results.push('✅️ 处理完成！总计: __LEN_ROWS__ 本');

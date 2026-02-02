@@ -10,6 +10,7 @@ Description  :
 
 from calibre.gui2 import error_dialog
 from calibre.gui2.actions import InterfaceAction, menu_action_unique_name
+from calibre.utils.logging import default_log
 from calibre_plugins.link_to_zotero.common_utils import (
     convert_html_to_text,
     get_js_template,
@@ -101,42 +102,63 @@ class LinkToZoteroAction(InterfaceAction):
         text = self.clipboard.text()
 
         if '"source":"Link To Zotero"' in text:
+            self.clipboard.dataChanged.disconnect(self.on_clipboard_changed)
+            text = self.clipboard.text()
             try:
                 data = json.loads(text)
-                item_ids = data.get("itemIDs", [])
+                succeed_book_ids = data.get("succeed_book_ids", [])
+                failed_book_ids = data.get("failed_book_ids", [])
 
-                if item_ids:
-                    # 暂时断开监听，防止更新剪贴板引起死循环
-                    self.clipboard.dataChanged.disconnect(self.on_clipboard_changed)
+                default_log.warn("Debug：", succeed_book_ids)
 
-                    # 执行数据库更新
-                    # self.update_in_zotero_status(item_ids)
+                # 执行数据库更新
+                self.mark_books_as_in_zotero(succeed_book_ids, failed_book_ids)
 
-                    # 成功后清除剪贴板中的同步指令，防止重复触发
-                    self.clipboard.clear()
-                    error_dialog(
-                        self.gui,
-                        "调试",
-                        item_ids,
-                        show=True,
-                    )
+                # 成功后清除剪贴板中的同步指令，防止重复触发
+                self.clipboard.clear()
 
             except Exception:
-                error_dialog(
-                    self.gui,
-                    "调试",
-                    "on_clipboard_changed()函数错误",
-                    show=True,
-                )
+                print("=======================debug", "on_clipboard_changed() error")
 
-        # 校验：检查内容是否包含 Zotero 回传的特定标识符（建议在 JS 模板中加入标识）
-        # 假设你的 JS 返回结果开头是 "ZOTERO_RESULT:"
-        if text.startswith("ZOTERO_RESULT:"):
-            # 停止监听，避免重复触发
-            self.is_listening_zotero = False
+    def mark_books_as_in_zotero(self, succeed_book_ids, fail_book_ids):
+        db = self.gui.current_db.new_api
 
-            # 处理回传内容
-            self.handle_zotero_callback(text)
+        if "#in_zotero" not in db.field_metadata.custom_field_keys():
+            db.create_custom_column(
+                label="in_zotero",  # 查阅名称 (自动加#)
+                name="In Zotero",  # 列标题
+                datatype="bool",  # 数据类型：datatype: 'text', 'bool', 'int', 'float', 'rating', 'datetime', 'series', 'comments'
+                is_multiple=False,  # 是否多值
+                editable=True,  # 是否可编辑
+                display={},  # 额外显示配置
+            )
+            default_log.warn("Debug：", "#in_zotero 列创建成功")
+        else:
+            default_log.warn("Debug：", "#in_zotero 列已存在")
+
+        # 构造更新字典 {id: value}
+        updates = {int(id): True for id in succeed_book_ids}
+        default_log.warn("Debug：", updates)
+
+        # 批量更新自定义列 '#in_zotero'
+        try:
+            db.set_field("#in_zotero", updates)
+        except Exception:
+            default_log.warn("Debug：", "#in_zotero 列标记失败")
+        default_log.warn("Debug：", "#in_zotero 列标记成功")
+
+        # 刷新界面显示
+        self.gui.library_view.model().refresh_ids(list(updates.keys()))
+
+        # 弹窗提示
+        from calibre.gui2 import info_dialog
+
+        info_dialog(
+            self.gui,
+            "同步成功",
+            f"已成功为 {len(succeed_book_ids)} 本书打上 Zotero 标记, 失败 {len(fail_book_ids)} 本。",
+            show=True,
+        )
 
     def add_menu(self, text, icon, tooltip, action):
         uni_name = menu_action_unique_name(self, text)
@@ -212,10 +234,7 @@ class LinkToZoteroAction(InterfaceAction):
                     f"results.push(`[跳过] in_书籍 {repr(title)} 没有 PDF 格式`);"
                 )
                 book_scripts.append(skip_script)
-                db.set_field("#in_zotero", {book_id: False})
                 continue
-
-            db.set_field("#in_zotero", {book_id: True})
 
             file_path = db.format_abspath(book_id, "PDF")
 
@@ -249,6 +268,9 @@ class LinkToZoteroAction(InterfaceAction):
             )
             single_book_js_code = single_book_js_code.replace(
                 "__TIMESTAMP__", repr(timestamp)
+            )
+            single_book_js_code = single_book_js_code.replace(
+                "__BOOK_ID__", repr(book_id)
             )
 
             # single_book_js = textwrap.dedent(single_book_js).strip()
