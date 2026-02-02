@@ -1,5 +1,7 @@
 if (existingCids.has('__BOOK_ID__')) {
-  results.push(`⏭️ [跳过] 【__TITLE__】calibre id: __BOOK_ID__ 已存在于 Zotero 中`);
+  results.push(
+    `⏭️ [跳过] 【__TITLE__】calibre id: __BOOK_ID__ 已存在于 Zotero 中（如果有元数据更新，请在 Zotero 中删除并重新导入）`,
+  );
   succeed_book_ids.push('__BOOK_ID__'); // 依然标记为成功，以便 Calibre 端更新 In Zotero 状态
 } else {
   try {

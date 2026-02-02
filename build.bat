@@ -28,7 +28,7 @@ echo [2/5] Packaging plugin files...
 :: -a 代表自动处理压缩格式
 :: -c 代表创建
 :: -f 代表指定文件名
-tar -a -c -f %PLUGIN_NAME% __init__.py ui.py plugin-import-name-link_to_zotero.txt images final_js_template.js single_book_js_template.js common_utils.py
+tar -a -c -f %PLUGIN_NAME% __init__.py ui.py plugin-import-name-link_to_zotero.txt images all_import.js single_import.js sync_check.js common_utils.py
 
 echo [3/5] Moving plugin to Calibre plugins directory...
 if not exist "%TARGET_DIR%" (

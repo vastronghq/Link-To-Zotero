@@ -122,7 +122,7 @@ class LinkToZoteroAction(InterfaceAction):
             script = self._build_single_book_js(db, book_id)
             if script:
                 book_scripts.append(script)
-        final_template = get_js_template(self, "import_final.js")
+        final_template = get_js_template(self, "all_import.js")
         js_code = final_template.replace("__ALL_BOOKS_JS__", "\n".join(book_scripts))
         js_code = js_code.replace("__LEN_ROWS__", str(len(rows)))
 
@@ -153,7 +153,7 @@ class LinkToZoteroAction(InterfaceAction):
             convert_html_to_text(metadata.comments) if metadata.comments else ""
         )
 
-        tpl = get_js_template(self, "single_book_js_template.js")
+        tpl = get_js_template(self, "single_import.js")
         # 填充元数据
         tpl = tpl.replace("__TITLE__", json.dumps(title))
         tpl = tpl.replace("__AUTHORS__", repr(simple_name_parser(authors)))
