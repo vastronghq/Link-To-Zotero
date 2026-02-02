@@ -104,6 +104,15 @@ class LinkToZoteroAction(InterfaceAction):
         self.menu.addAction(action)
         return action
 
+    def uuid_id_map(self):
+        db = self.gui.current_db.new_api
+        all_book_ids = db.all_book_ids()
+        uuid_id = {}
+        for book_id in all_book_ids:
+            uuid = db.get_metadata(book_id).uuid
+            uuid_id[uuid] = book_id
+        return uuid_id
+
     # --- 核心逻辑 A：导入脚本生成 ---
     def generate_import_script(self):
         if not self._check_and_create_column():
@@ -122,9 +131,8 @@ class LinkToZoteroAction(InterfaceAction):
             script = self._build_single_book_js(db, book_id)
             if script:
                 book_scripts.append(script)
-        final_template = get_js_template(self, "import_final.js")
+        final_template = get_js_template(self, "all_import.js")
         js_code = final_template.replace("__ALL_BOOKS_JS__", "\n".join(book_scripts))
-        js_code = js_code.replace("__LEN_ROWS__", str(len(rows)))
 
         self._show_and_listen(js_code, f"导入 {len(rows)} 本书籍")
 
@@ -132,10 +140,11 @@ class LinkToZoteroAction(InterfaceAction):
         metadata = db.get_metadata(book_id)
         formats = db.formats(book_id)
         if "PDF" not in formats:
-            return f"results.push(`[跳过] {repr(mi.title)} 无 PDF`);"
+            return f"results.push(`[跳过] {repr(metadata.title)} 无 PDF`);"
         file_path = db.format_abspath(book_id, "PDF")
 
         title = metadata.title
+        book_uuid = metadata.uuid
         authors = metadata.authors
         published = metadata.pubdate.strftime("%Y-%m-%d") if metadata.pubdate else ""
         published = published if published[:2] in ["18", "19", "20", "21"] else ""
@@ -153,7 +162,7 @@ class LinkToZoteroAction(InterfaceAction):
             convert_html_to_text(metadata.comments) if metadata.comments else ""
         )
 
-        tpl = get_js_template(self, "single_book_js_template.js")
+        tpl = get_js_template(self, "single_import.js")
         # 填充元数据
         tpl = tpl.replace("__TITLE__", json.dumps(title))
         tpl = tpl.replace("__AUTHORS__", repr(simple_name_parser(authors)))
@@ -165,15 +174,17 @@ class LinkToZoteroAction(InterfaceAction):
         tpl = tpl.replace("__FILE_PATH__", repr(file_path))
         tpl = tpl.replace("__TIMESTAMP__", repr(timestamp))
         tpl = tpl.replace("__BOOK_ID__", repr(book_id))
+        tpl = tpl.replace("__BOOK_UUID__", repr(book_uuid))
         return tpl
 
     # --- 核心逻辑 B：检查脚本生成 ---
     def generate_check_script(self):
         db = self.gui.current_db.new_api
-        all_marked_ids = list(db.search("#in_zotero:true"))
+        marked_ids = list(db.search("#in_zotero:true"))
+        marked_uuids = [db.get_metadata(book_id).uuid for book_id in marked_ids]
 
         tpl = get_js_template(self, "sync_check.js")
-        js_code = tpl.replace("__CALIBRE_MARKED_IDS__", json.dumps(all_marked_ids))
+        js_code = tpl.replace("__CALIBRE_MARKED_UUIDS__", json.dumps(marked_uuids))
         default_log.warn(js_code)
 
         self._show_and_listen(js_code, "全库同步检查")
@@ -197,44 +208,39 @@ class LinkToZoteroAction(InterfaceAction):
             except Exception as e:
                 default_log.error(f"解析回传失败: {e}")
 
-    def _apply_sync_results(self, data):
+    def _apply_sync_results(self, response_data):
+        uuid_id = self.uuid_id_map()
         db = self.gui.current_db.new_api
         updates = {}
+        default_log.warn(response_data)
 
         # 标记成功的
-        for bid in data.get("succeed_book_ids", []):
-            updates[int(bid)] = True
+        for uuid in response_data.get("succeed_book_uuids", []):
+            updates[int(uuid_id[uuid])] = True
 
         # 取消标记 (Zotero 侧已删)
-        deleted_ids = data.get("deleted_in_zotero_ids", [])
-        if deleted_ids:
+        deleted_uuids = response_data.get("uuids_deleted_in_zotero", [])
+        if deleted_uuids:
             items_html = "".join(
                 [
-                    f"<li>{i + 1}. {db.get_metadata(book_id).title}</li>"
-                    for i, book_id in enumerate(deleted_ids[:5])
+                    f"<li>{i + 1}. {db.get_metadata(uuid_id[uuid]).title}</li>"
+                    for i, uuid in enumerate(deleted_uuids[:5])
                 ]
             )
-            if len(deleted_ids) > 5:
-                items_html += f"<li>... 以及另外 {len(deleted_ids) - 5} 本</li>"
+            if len(deleted_uuids) > 5:
+                items_html += f"<li>... 以及另外 {len(deleted_uuids) - 5} 本</li>"
 
             if question_dialog(
                 self.gui,
                 "同步更新",
-                f"<b>检测到 Zotero 端删除了 {len(deleted_ids)} 本书：</b><br><ul>{items_html}</ul><br>是否同步取消 Calibre 端的标记？",
+                f"<b>检测到 Zotero 端删除了 {len(deleted_uuids)} 本书：</b><br><ul>{items_html}</ul><br>是否同步取消 Calibre 端的标记？",
             ):
-                for bid in deleted_ids:
-                    updates[int(bid)] = None
+                for uuid in deleted_uuids:
+                    updates[int(uuid_id[uuid])] = None
         if updates:
-            # self._ensure_custom_column(db)
             db.set_field("#in_zotero", updates)
             self.gui.library_view.model().refresh_ids(list(updates.keys()))
             info_dialog(self.gui, "完成", "同步状态已更新", show=True)
-
-    def _ensure_custom_column(self, db):
-        if "#in_zotero" not in db.field_metadata.custom_field_keys():
-            db.create_custom_column(
-                label="in_zotero", name="In Zotero", datatype="bool"
-            )
 
     def show_copy_dialog(self, code, title):
         # 此处保留你原有的 QDialog 代码，只需确保点击按钮时 clipboard.setText(code) 即可
