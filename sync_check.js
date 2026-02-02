@@ -4,10 +4,10 @@
  * @Software     : VScode
  * @Author       : hqwang
  * @Date         : 2026-02-02 22:49:27
- * @LastEditTime : 2026-02-03 00:21:10
+ * @LastEditTime : 2026-02-03 01:13:06
  * @Description  :
  */
-let results = ['🔍 Link2Zotero 开始双向同步检查...', '--------------------------'];
+let results = ['🔍 Link To Zotero 开始双向同步检查...', '--------------------------'];
 let deleted_in_zotero_ids = [];
 let calibreMarkedIds = __CALIBRE_MARKED_IDS__; // 全量列表
 
@@ -45,7 +45,7 @@ if (idsToTrash.length > 0) {
 for (let cid of calibreMarkedIds) {
   if (!zoteroCidMap.has(cid)) {
     deleted_in_zotero_ids.push(cid);
-    results.push(`⚠️ Calibre ID ${cid}： 此条目在 Zotero 端不存在，将在 Calibre 端取消勾选`);
+    results.push(`⚠️ calibre id ${cid}： 此条目在 Zotero 端不存在，将在 Calibre 端取消勾选`);
   }
 }
 

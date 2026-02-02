@@ -1,6 +1,21 @@
-let results = ['🚀 Link2Zotero 开始同步...', '--------------------------'];
+let results = ['🚀 Link To Zotero 开始导入...', '--------------------------'];
 let succeed_book_ids = [];
 let failed_book_ids = [];
+
+// --- 查重处理 ---
+let existingCids = new Set();
+let allItemIDs = await Zotero.Items.getAll(Zotero.Libraries.userLibraryID, false, false, true);
+for (let id of allItemIDs) {
+  let item = Zotero.Items.get(id);
+  // 仅检查常规条目
+  if (!item.isRegularItem() || item.isAttachment() || item.isNote() || item.deleted) continue;
+
+  let cn = item.getField('callNumber') || '';
+  if (cn.includes('calibre id: ')) {
+    let cid = cn.split('calibre id: ')[1]; // 此处不可以 parseInt
+    existingCids.add(cid);
+  }
+}
 
 // Python 填充每本书的片段
 __ALL_BOOKS_JS__;
