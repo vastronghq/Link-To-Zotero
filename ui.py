@@ -74,16 +74,69 @@ class LinkToZoteroAction(InterfaceAction):
         # 当用户点击工具栏按钮时，执行 self.generate_zotero_script 方法
         self.qaction.triggered.connect(self.generate_zotero_script)
 
-        db = self.gui.current_db.new_api
-        if "#in_zotero" not in db.field_metadata.custom_field_keys():
-            db.create_custom_column(
-                label="in_zotero",  # 查阅名称 (自动加#)
-                name="In Zotero",  # 列标题
-                datatype="bool",  # 数据类型：datatype: 'text', 'bool', 'int', 'float', 'rating', 'datetime', 'series', 'comments'
-                is_multiple=False,  # 是否多值
-                editable=True,  # 是否可编辑
-                display={},  # 额外显示配置
-            )
+        # db = self.gui.current_db.new_api
+        # if "#in_zotero" not in db.field_metadata.custom_field_keys():
+        #     db.create_custom_column(
+        #         label="in_zotero",  # 查阅名称 (自动加#)
+        #         name="In Zotero",  # 列标题
+        #         datatype="bool",  # 数据类型：datatype: 'text', 'bool', 'int', 'float', 'rating', 'datetime', 'series', 'comments'
+        #         is_multiple=False,  # 是否多值
+        #         editable=True,  # 是否可编辑
+        #         display={},  # 额外显示配置
+        #     )
+
+    def setup_clipboard_monitor(self):
+        # 获取系统剪贴板
+        self.clipboard = QApplication.clipboard()
+        # 监听剪贴板变化信号
+        self.clipboard.dataChanged.connect(self.on_clipboard_changed)
+        # 可选：在状态栏给个提示，让用户知道现在是“等待回传”状态
+
+    def on_clipboard_changed(self):
+        """
+        每当剪贴板内容变化时，自动尝试解析
+        """
+        import json
+
+        text = self.clipboard.text()
+
+        if '"source":"Link To Zotero"' in text:
+            try:
+                data = json.loads(text)
+                item_ids = data.get("itemIDs", [])
+
+                if item_ids:
+                    # 暂时断开监听，防止更新剪贴板引起死循环
+                    self.clipboard.dataChanged.disconnect(self.on_clipboard_changed)
+
+                    # 执行数据库更新
+                    # self.update_in_zotero_status(item_ids)
+
+                    # 成功后清除剪贴板中的同步指令，防止重复触发
+                    self.clipboard.clear()
+                    error_dialog(
+                        self.gui,
+                        "调试",
+                        item_ids,
+                        show=True,
+                    )
+
+            except Exception:
+                error_dialog(
+                    self.gui,
+                    "调试",
+                    "on_clipboard_changed()函数错误",
+                    show=True,
+                )
+
+        # 校验：检查内容是否包含 Zotero 回传的特定标识符（建议在 JS 模板中加入标识）
+        # 假设你的 JS 返回结果开头是 "ZOTERO_RESULT:"
+        if text.startswith("ZOTERO_RESULT:"):
+            # 停止监听，避免重复触发
+            self.is_listening_zotero = False
+
+            # 处理回传内容
+            self.handle_zotero_callback(text)
 
     def add_menu(self, text, icon, tooltip, action):
         uni_name = menu_action_unique_name(self, text)
@@ -216,6 +269,7 @@ class LinkToZoteroAction(InterfaceAction):
             else f"批量处理 {len(summary_titles)} 本书"
         )
         self.show_copy_dialog(final_js_code, dialog_title)
+        self.setup_clipboard_monitor()
 
     def show_copy_dialog(self, code, title):
         """
