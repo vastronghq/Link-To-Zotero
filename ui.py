@@ -8,8 +8,11 @@ LastEditTime : 2026-01-31 13:15:17
 Description  :
 """
 
-from calibre.gui2 import error_dialog
+import json
+
+from calibre.gui2 import error_dialog, info_dialog, question_dialog
 from calibre.gui2.actions import InterfaceAction, menu_action_unique_name
+from calibre.utils.logging import default_log
 from calibre_plugins.link_to_zotero.common_utils import (
     convert_html_to_text,
     get_js_template,
@@ -32,7 +35,7 @@ class LinkToZoteroAction(InterfaceAction):
     action_spec = (
         "Link To Zotero",
         "images/link_icon_2.png",
-        "点击执行 Link To Zotero 插件功能",
+        "同步选中书籍到 Zotero",
         None,
     )
 
@@ -40,39 +43,53 @@ class LinkToZoteroAction(InterfaceAction):
         """
         当 Calibre 启动并初始化插件时调用此方法。
         """
-        # --- 1. 加载并设置图标 ---
+        # 初始化图标
         # get_icons 是 Calibre 内置函数，专门从插件 zip 包中提取图片
         # 参数 1: images 文件夹下的文件名
         # 参数 2: 该图标在内存中的唯一标识字符串
-        icon_interface = get_icons(
-            "images/icon_2.png", "calibre_link_to_zotero_icon_interface"
-        )
-        icon_menu_2 = get_icons(
-            "images/icon_3.png", "calibre_link_to_zotero_icon_menu_2"
-        )
+        icon_interface = get_icons("images/icon_2.png", "icon_main")
+        icon_sync = get_icons("images/icon_3.png", "icon_sync")
         self.qaction.setIcon(icon_interface)
+        # self._check_and_create_column()
 
-        # Setup menu
+        # 构建菜单
         self.menu = QMenu()
         self.qaction.setMenu(self.menu)
 
         self.add_menu(
-            _("Step 1: Link Book's PDF to Zotero"),
-            icon_interface,
-            _("Configure No Trans"),
-            self.generate_zotero_script,
+            "双向同步检查 (清理)",
+            icon_sync,
+            "检查并同步两端删除状态",
+            self.generate_check_script,
         )
 
-        self.add_menu(
-            _('Step 2: Apply Book’s "timestamp" to Zotero'),
-            icon_menu_2,
-            _("Configure No Trans"),
-            self.sync_timestamp,
-        )
+        # 绑定主按钮点击事件
+        # 当用户点击工具栏按钮时，执行 self.generate_import_script 方法
+        self.qaction.triggered.connect(self.generate_import_script)
 
-        # --- 2. 绑定点击事件 ---
-        # 当用户点击工具栏按钮时，执行 self.generate_zotero_script 方法
-        self.qaction.triggered.connect(self.generate_zotero_script)
+        # 内部状态管理
+        self.clipboard = QApplication.clipboard()
+
+    def _check_and_create_column(self):
+        db = self.gui.current_db.new_api
+        is_exist = "#in_zotero" in db.field_metadata.custom_field_keys()
+        if not is_exist:
+            default_log.warn("未检测到 '#in_zotero' 自定义列，尝试创建...")
+            # 创建自定义列
+            db.create_custom_column(
+                label="in_zotero",
+                name="In Zotero",
+                datatype="bool",
+                is_multiple=False,
+                display={},
+            )
+            info_dialog(
+                self.gui,
+                "初始化",
+                "已为您创建 '#in_zotero' 自定义列，请**重启 Calibre** 以启用同步功能。",
+                show=True,
+            )
+        return is_exist
 
     def add_menu(self, text, icon, tooltip, action):
         uni_name = menu_action_unique_name(self, text)
@@ -87,30 +104,10 @@ class LinkToZoteroAction(InterfaceAction):
         self.menu.addAction(action)
         return action
 
-    def sync_timestamp(self):
-        rows = self.gui.library_view.selectionModel().selectedRows()
-        if not rows:
-            return error_dialog(self.gui, "错误", "请先选中至少一本书籍。", show=True)
-
-        db = self.gui.current_db.new_api
-
-        error_dialog(
-            self.gui,
-            "调试",
-            db.field_for("#created", 11).strftime("%Y-%m-%d %H:%M:%S"),
-            show=True,
-        )
-
-    def generate_zotero_script(self):
-        # error_dialog(
-        #     self.gui,
-        #     "调试",
-        #     "啊士大夫萨芬仅仅是",
-        #     show=True,
-        # )
-        """
-        Link To Zotero 核心业务逻辑
-        """
+    # --- 核心逻辑 A：导入脚本生成 ---
+    def generate_import_script(self):
+        if not self._check_and_create_column():
+            return
         # 1. 获取选中的书籍 ID
         rows = self.gui.library_view.selectionModel().selectedRows()
         if not rows:
@@ -118,101 +115,129 @@ class LinkToZoteroAction(InterfaceAction):
 
         db = self.gui.current_db.new_api
         book_scripts = []
-        summary_titles = []
 
         # 2. 遍历每一本书
         for row in rows:
             book_id = self.gui.library_view.model().id(row.row())
-            metadata = db.get_metadata(book_id)
-            title = metadata.title
-            summary_titles.append(title)
+            script = self._build_single_book_js(db, book_id)
+            if script:
+                book_scripts.append(script)
+        final_template = get_js_template(self, "import_final.js")
+        js_code = final_template.replace("__ALL_BOOKS_JS__", "\n".join(book_scripts))
+        js_code = js_code.replace("__LEN_ROWS__", str(len(rows)))
 
-            # --- 元数据处理 ---
-            authors = metadata.authors  # 返回列表
-            res = metadata.pubdate.strftime("%Y-%m-%d") if metadata.pubdate else ""
-            published = res if res[:2] in ["18", "19", "20", "21"] else ""
-            publisher = metadata.publisher if metadata.publisher else ""
-            language = "zh" if metadata.language == "zho" else metadata.language
-            timestamp = (
-                db.field_for("#created", book_id).strftime("%Y-%m-%d %H:%M:%S")
-                if db.field_for("#created", book_id).strftime("%Y-%m-%d %H:%M:%S")
-                else ""
-            )
-            identifiers = (
-                (metadata.identifiers.get("isbn") or "") if metadata.identifiers else ""
-            )
-            abstract_text = (
-                convert_html_to_text(metadata.comments) if metadata.comments else ""
-            )
+        self._show_and_listen(js_code, f"导入 {len(rows)} 本书籍")
 
-            # --- 文件格式和附件路径获取 ---
-            formats = db.formats(book_id)
+    def _build_single_book_js(self, db, book_id):
+        metadata = db.get_metadata(book_id)
+        formats = db.formats(book_id)
+        if "PDF" not in formats:
+            return f"results.push(`[跳过] {repr(mi.title)} 无 PDF`);"
+        file_path = db.format_abspath(book_id, "PDF")
 
-            if "PDF" not in formats:
-                # 如果没有PDF，在日志中记录跳过
-                skip_script = (
-                    f"results.push(`[跳过] 书籍 {repr(title)} 没有 PDF 格式`);"
-                )
-                book_scripts.append(skip_script)
-                continue
-
-            file_path = db.format_abspath(book_id, "PDF")
-
-            # --- 生成单本书的 JS 片段 ---
-            single_book_js_template = get_js_template(
-                self, "single_book_js_template.js"
-            )
-            single_book_js_code = single_book_js_template.replace(
-                "__TITLE__", repr(title)
-            )
-            single_book_js_code = single_book_js_code.replace(
-                "__AUTHORS__", repr(simple_name_parser(authors))
-            )
-            single_book_js_code = single_book_js_code.replace(
-                "__PUBLISHED__", repr(published)
-            )
-            single_book_js_code = single_book_js_code.replace(
-                "__PUBLISHER__", repr(publisher)
-            )
-            single_book_js_code = single_book_js_code.replace(
-                "__LANGUAGE__", repr(language)
-            )
-            single_book_js_code = single_book_js_code.replace(
-                "__IDENTIFIERS__", repr(identifiers)
-            )
-            single_book_js_code = single_book_js_code.replace(
-                "__ABSTRACT_TEXT__", repr(abstract_text)
-            )
-            single_book_js_code = single_book_js_code.replace(
-                "__FILE_PATH__", repr(file_path)
-            )
-            single_book_js_code = single_book_js_code.replace(
-                "__TIMESTAMP__", repr(timestamp)
-            )
-
-            # single_book_js = textwrap.dedent(single_book_js).strip()
-            book_scripts.append(single_book_js_code)
-
-        # 3. 合并所有脚本，构建完整的日志回传逻辑
-        all_books_js = "\n".join(book_scripts)
-        # all_books_js = textwrap.dedent(all_books_js).strip()
-
-        final_js_template = get_js_template(self, "final_js_template.js")
-        final_js_code = final_js_template.replace("__ALL_BOOKS_JS__", all_books_js)
-        final_js_code = final_js_code.replace("__LEN_ROWS__", str(len(rows)))
-
-        # 4. 弹出对话框（显示第一本书名作为标题，或显示选中数量）
-        dialog_title = (
-            summary_titles[0]
-            if len(summary_titles) == 1
-            else f"批量处理 {len(summary_titles)} 本书"
+        title = metadata.title
+        authors = metadata.authors
+        published = metadata.pubdate.strftime("%Y-%m-%d") if metadata.pubdate else ""
+        published = published if published[:2] in ["18", "19", "20", "21"] else ""
+        publisher = metadata.publisher if metadata.publisher else ""
+        language = "zh" if metadata.language == "zho" else metadata.language
+        timestamp = (
+            db.field_for("#created", book_id).strftime("%Y-%m-%d %H:%M:%S")
+            if db.field_for("#created", book_id).strftime("%Y-%m-%d %H:%M:%S")
+            else ""
         )
-        self.show_copy_dialog(final_js_code, dialog_title)
+        identifiers = (
+            (metadata.identifiers.get("isbn") or "") if metadata.identifiers else ""
+        )
+        abstract_text = (
+            convert_html_to_text(metadata.comments) if metadata.comments else ""
+        )
+
+        tpl = get_js_template(self, "single_book_js_template.js")
+        # 填充元数据
+        tpl = tpl.replace("__TITLE__", json.dumps(title))
+        tpl = tpl.replace("__AUTHORS__", repr(simple_name_parser(authors)))
+        tpl = tpl.replace("__PUBLISHED__", repr(published))
+        tpl = tpl.replace("__PUBLISHER__", repr(publisher))
+        tpl = tpl.replace("__LANGUAGE__", repr(language))
+        tpl = tpl.replace("__IDENTIFIERS__", repr(identifiers))
+        tpl = tpl.replace("__ABSTRACT_TEXT__", repr(abstract_text))
+        tpl = tpl.replace("__FILE_PATH__", repr(file_path))
+        tpl = tpl.replace("__TIMESTAMP__", repr(timestamp))
+        tpl = tpl.replace("__BOOK_ID__", repr(book_id))
+        return tpl
+
+    # --- 核心逻辑 B：检查脚本生成 ---
+    def generate_check_script(self):
+        db = self.gui.current_db.new_api
+        all_marked_ids = list(db.search("#in_zotero:true"))
+
+        tpl = get_js_template(self, "sync_check.js")
+        js_code = tpl.replace("__CALIBRE_MARKED_IDS__", json.dumps(all_marked_ids))
+        default_log.warn(js_code)
+
+        self._show_and_listen(js_code, "全库同步检查")
+
+    # --- 通用 UI 与 监听逻辑 ---
+    def _show_and_listen(self, code, title):
+        self.show_copy_dialog(code, title)
+        # 开启剪贴板监听
+        self.clipboard.dataChanged.connect(self.on_clipboard_changed)
+        self.gui.status_bar.show_message("脚本已复制，等待 Zotero 回传结果...", 10000)
+
+    def on_clipboard_changed(self):
+        text = self.clipboard.text()
+        if '"source":"Link To Zotero"' in text:
+            try:
+                # 必须断开连接，否则 clear() 又会触发一次
+                self.clipboard.dataChanged.disconnect(self.on_clipboard_changed)
+                data = json.loads(text)
+                self._apply_sync_results(data)
+                self.clipboard.clear()
+            except Exception as e:
+                default_log.error(f"解析回传失败: {e}")
+
+    def _apply_sync_results(self, data):
+        db = self.gui.current_db.new_api
+        updates = {}
+
+        # 标记成功的
+        for bid in data.get("succeed_book_ids", []):
+            updates[int(bid)] = True
+
+        # 取消标记 (Zotero 侧已删)
+        deleted_ids = data.get("deleted_in_zotero_ids", [])
+        if deleted_ids:
+            items_html = "".join(
+                [
+                    f"<li>{i + 1}. {db.get_metadata(book_id).title}</li>"
+                    for i, book_id in enumerate(deleted_ids[:5])
+                ]
+            )
+            if len(deleted_ids) > 5:
+                items_html += f"<li>... 以及另外 {len(deleted_ids) - 5} 本</li>"
+
+            if question_dialog(
+                self.gui,
+                "同步更新",
+                f"<b>检测到 Zotero 端删除了 {len(deleted_ids)} 本书：</b><br><ul>{items_html}</ul><br>是否同步取消 Calibre 端的标记？",
+            ):
+                for bid in deleted_ids:
+                    updates[int(bid)] = None
+        if updates:
+            # self._ensure_custom_column(db)
+            db.set_field("#in_zotero", updates)
+            self.gui.library_view.model().refresh_ids(list(updates.keys()))
+            info_dialog(self.gui, "完成", "同步状态已更新", show=True)
+
+    def _ensure_custom_column(self, db):
+        if "#in_zotero" not in db.field_metadata.custom_field_keys():
+            db.create_custom_column(
+                label="in_zotero", name="In Zotero", datatype="bool"
+            )
 
     def show_copy_dialog(self, code, title):
-        """
-        创建一个简单的对话框来显示生成的代码
-        """
+        # 此处保留你原有的 QDialog 代码，只需确保点击按钮时 clipboard.setText(code) 即可
         d = QDialog(self.gui)
         d.setWindowTitle(f"Link To Zotero - {title}")
         layout = QVBoxLayout()
