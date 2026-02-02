@@ -1,8 +1,6 @@
-if (existingCids.has('__BOOK_ID__')) {
-  results.push(
-    `⏭️ [跳过] 【__TITLE__】calibre id: __BOOK_ID__ 已存在于 Zotero 中（如果有元数据更新，请在 Zotero 中删除并重新导入）`,
-  );
-  succeed_book_ids.push('__BOOK_ID__'); // 依然标记为成功，以便 Calibre 端更新 In Zotero 状态
+if (existing_uuids.has(__BOOK_UUID__)) {
+  results.push(`⏭️ [跳过] 【__TITLE__】已存在于 Zotero 中（如果有元数据更新，请在 Zotero 中手动删除，然后重新导入）`);
+  skipped_book_uuids.push(__BOOK_UUID__); // 依然标记为成功，以便 Calibre 端更新 In Zotero 状态
 } else {
   try {
     let item = new Zotero.Item('book');
@@ -13,7 +11,7 @@ if (existingCids.has('__BOOK_ID__')) {
     item.setField('language', __LANGUAGE__);
     item.setField('ISBN', __IDENTIFIERS__);
     item.setField('abstractNote', __ABSTRACT_TEXT__);
-    item.setField('callNumber', 'calibre id: ' + __BOOK_ID__);
+    item.setField('callNumber', 'calibre uuid: ' + __BOOK_UUID__);
     let itemID = await item.saveTx();
 
     await Zotero.Attachments.linkFromFile({
@@ -42,9 +40,9 @@ if (existingCids.has('__BOOK_ID__')) {
     // 4. 核心：通知 UI 刷新，这样你就不用等下一本书导入了
     Zotero.Notifier.trigger('modify', 'item', idsToUpdate);
     results.push(`✅ ${new Date().toLocaleTimeString()} 【__TITLE__】 calibre id: __BOOK_ID__ 已导入并链接`);
-    succeed_book_ids.push(__BOOK_ID__);
+    succeed_book_uuids.push(__BOOK_UUID__);
   } catch (e) {
-    failed_book_ids.push(__BOOK_ID__);
+    failed_book_uuids.push(__BOOK_UUID__);
     results.push(`❌ __TITLE__：${e.toString()}`);
   }
 }
