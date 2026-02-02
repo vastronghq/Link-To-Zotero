@@ -35,7 +35,7 @@ try {
   }
   // 4. 核心：通知 UI 刷新，这样你就不用等下一本书导入了
   Zotero.Notifier.trigger('modify', 'item', idsToUpdate);
-  results.push(`✅ ${new Date().toLocaleTimeString()} __TITLE__ itemID:${itemID} 已导入并链接`);
+  results.push(`✅ ${new Date().toLocaleTimeString()} 【__TITLE__】 itemID:${itemID} 已导入并链接`);
   succeed_book_ids.push(__BOOK_ID__);
 } catch (e) {
   failed_book_ids.push(__BOOK_ID__);
