@@ -4,7 +4,7 @@
  * @Software     : VScode
  * @Author       : hqwang
  * @Date         : 2026-02-02 22:49:27
- * @LastEditTime : 2026-02-03 01:13:06
+ * @LastEditTime : 2026-02-03 01:43:42
  * @Description  :
  */
 let results = ['🔍 Link To Zotero 开始双向同步检查...', '--------------------------'];
@@ -57,5 +57,10 @@ let feedback = {
 Zotero.Utilities.Internal.copyTextToClipboard(JSON.stringify(feedback));
 
 results.push('--------------------------');
-results.push(`✅ 检查完毕。请回到 Calibre 处理回传数据。`);
+
+if (idsToTrash.length === 0 && deleted_in_zotero_ids.length === 0) {
+  results.push(`✅ 检查完毕，所有记录状态一致，无需进一步操作。`);
+} else {
+  results.push(`✅ 检查完毕，请回到 Calibre 处理回传数据。`);
+}
 return results.join('\n');

@@ -50,6 +50,7 @@ class LinkToZoteroAction(InterfaceAction):
         icon_interface = get_icons("images/icon_2.png", "icon_main")
         icon_sync = get_icons("images/icon_3.png", "icon_sync")
         self.qaction.setIcon(icon_interface)
+        # self._check_and_create_column()
 
         # 构建菜单
         self.menu = QMenu()
@@ -69,6 +70,27 @@ class LinkToZoteroAction(InterfaceAction):
         # 内部状态管理
         self.clipboard = QApplication.clipboard()
 
+    def _check_and_create_column(self):
+        db = self.gui.current_db.new_api
+        is_exist = "#in_zotero" in db.field_metadata.custom_field_keys()
+        if not is_exist:
+            default_log.warn("未检测到 '#in_zotero' 自定义列，尝试创建...")
+            # 创建自定义列
+            db.create_custom_column(
+                label="in_zotero",
+                name="In Zotero",
+                datatype="bool",
+                is_multiple=False,
+                display={},
+            )
+            info_dialog(
+                self.gui,
+                "初始化",
+                "已为您创建 '#in_zotero' 自定义列，请**重启 Calibre** 以启用同步功能。",
+                show=True,
+            )
+        return is_exist
+
     def add_menu(self, text, icon, tooltip, action):
         uni_name = menu_action_unique_name(self, text)
         action = self.create_menu_action(
@@ -84,6 +106,8 @@ class LinkToZoteroAction(InterfaceAction):
 
     # --- 核心逻辑 A：导入脚本生成 ---
     def generate_import_script(self):
+        if not self._check_and_create_column():
+            return
         # 1. 获取选中的书籍 ID
         rows = self.gui.library_view.selectionModel().selectedRows()
         if not rows:
@@ -201,7 +225,7 @@ class LinkToZoteroAction(InterfaceAction):
                 for bid in deleted_ids:
                     updates[int(bid)] = None
         if updates:
-            self._ensure_custom_column(db)
+            # self._ensure_custom_column(db)
             db.set_field("#in_zotero", updates)
             self.gui.library_view.model().refresh_ids(list(updates.keys()))
             info_dialog(self.gui, "完成", "同步状态已更新", show=True)
