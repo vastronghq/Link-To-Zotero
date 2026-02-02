@@ -108,11 +108,16 @@ class LinkToZoteroAction(InterfaceAction):
                 data = json.loads(text)
                 succeed_book_ids = data.get("succeed_book_ids", [])
                 failed_book_ids = data.get("failed_book_ids", [])
+                deleted_in_zotero_ids = data.get(
+                    "deleted_in_zotero_ids", []
+                )  # Zotero 侧删除的
 
                 default_log.warn("Debug：", succeed_book_ids)
 
                 # 执行数据库更新
-                self.mark_books_as_in_zotero(succeed_book_ids, failed_book_ids)
+                self.mark_books_as_in_zotero(
+                    succeed_book_ids, failed_book_ids, deleted_in_zotero_ids
+                )
 
                 # 成功后清除剪贴板中的同步指令，防止重复触发
                 self.clipboard.clear()
@@ -120,7 +125,9 @@ class LinkToZoteroAction(InterfaceAction):
             except Exception:
                 print("=======================debug", "on_clipboard_changed() error")
 
-    def mark_books_as_in_zotero(self, succeed_book_ids, fail_book_ids):
+    def mark_books_as_in_zotero(
+        self, succeed_book_ids, fail_book_ids, deleted_in_zotero_ids
+    ):
         db = self.gui.current_db.new_api
 
         if "#in_zotero" not in db.field_metadata.custom_field_keys():
@@ -137,15 +144,21 @@ class LinkToZoteroAction(InterfaceAction):
             default_log.warn("Debug：", "#in_zotero 列已存在")
 
         # 构造更新字典 {id: value}
-        updates = {int(id): True for id in succeed_book_ids}
+        updates = {}
+        for bid in succeed_book_ids:
+            updates[int(bid)] = True
+        for bid in deleted_in_zotero_ids:
+            updates[int(bid)] = None  # Zotero 删了，Calibre 取消勾选
+
         default_log.warn("Debug：", updates)
 
         # 批量更新自定义列 '#in_zotero'
         try:
-            db.set_field("#in_zotero", updates)
+            if updates:
+                db.set_field("#in_zotero", updates)
+                default_log.warn("Debug：", "#in_zotero 列标记成功")
         except Exception:
             default_log.warn("Debug：", "#in_zotero 列标记失败")
-        default_log.warn("Debug：", "#in_zotero 列标记成功")
 
         # 刷新界面显示
         self.gui.library_view.model().refresh_ids(list(updates.keys()))
@@ -276,6 +289,14 @@ class LinkToZoteroAction(InterfaceAction):
             # single_book_js = textwrap.dedent(single_book_js).strip()
             book_scripts.append(single_book_js_code)
 
+        # --- 新增：获取 Calibre 中所有标记为 True 的 ID 列表 ---
+        all_marked_ids = []
+        try:
+            # 搜索所有 #in_zotero 为 True 的书籍 ID
+            all_marked_ids = list(db.search("#in_zotero:true"))
+        except:
+            pass
+
         # 3. 合并所有脚本，构建完整的日志回传逻辑
         all_books_js = "\n".join(book_scripts)
         # all_books_js = textwrap.dedent(all_books_js).strip()
@@ -283,6 +304,11 @@ class LinkToZoteroAction(InterfaceAction):
         final_js_template = get_js_template(self, "final_js_template.js")
         final_js_code = final_js_template.replace("__ALL_BOOKS_JS__", all_books_js)
         final_js_code = final_js_code.replace("__LEN_ROWS__", str(len(rows)))
+
+        # --- 新增：注入全量已标记 ID 列表 ---
+        final_js_code = final_js_code.replace(
+            "__CALIBRE_MARKED_IDS__", str(all_marked_ids)
+        )
 
         # 4. 弹出对话框（显示第一本书名作为标题，或显示选中数量）
         dialog_title = (
