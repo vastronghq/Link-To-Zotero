@@ -187,7 +187,7 @@ class LinkToZoteroAction(InterfaceAction):
         js_code = tpl.replace("__CALIBRE_MARKED_UUIDS__", json.dumps(marked_uuids))
         default_log.warn(js_code)
 
-        self._show_and_listen(js_code, "全库同步检查")
+        self._show_and_listen(js_code, "双向同步检查")
 
     # --- 通用 UI 与 监听逻辑 ---
     def _show_and_listen(self, code, title):
@@ -250,7 +250,12 @@ class LinkToZoteroAction(InterfaceAction):
         d.setLayout(layout)
 
         layout.addWidget(
-            QLabel('请复制下方脚本，在 Zotero "运行 JavaScript" 窗口中运行：')
+            QLabel(
+                "<b>使用说明：</b><br>"
+                "1. 复制下方脚本；<br>"
+                "2. 前往 Zotero 菜单：<b>工具 > 开发者 > Run JavaScript</b>；<br>"
+                "3. 在窗口中粘贴并点击<b>执行</b>。"
+            )
         )
 
         # 代码展示框
@@ -261,6 +266,7 @@ class LinkToZoteroAction(InterfaceAction):
 
         # 复制并关闭按钮
         btn = QPushButton("复制到剪贴板并关闭", d)
+        btn.setStyleSheet("height: 30px; font-size: 14px;")
 
         def copy_and_close():
             # 使用 Qt 的剪贴板
