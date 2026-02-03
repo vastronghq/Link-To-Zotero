@@ -14,10 +14,13 @@ if (existing_uuids.has(__BOOK_UUID__)) {
     item.setField('callNumber', 'calibre uuid: ' + __BOOK_UUID__);
     let itemID = await item.saveTx();
 
+    const ext = __FILE_PATH__.substring(__FILE_PATH__.lastIndexOf('.')).toLowerCase();
+    const mimeType = mimeTypes[ext] || 'application/octet-stream';
+
     await Zotero.Attachments.linkFromFile({
       file: __FILE_PATH__,
       parentItemID: itemID,
-      contentType: 'application/pdf',
+      contentType: mimeType,
     });
 
     // 1. 待修改的item

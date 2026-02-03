@@ -139,9 +139,12 @@ class LinkToZoteroAction(InterfaceAction):
     def _build_single_book_js(self, db, book_id):
         metadata = db.get_metadata(book_id)
         formats = db.formats(book_id)
-        if "PDF" not in formats:
-            return f"results.push(`[跳过] {repr(metadata.title)} 无 PDF`);"
-        file_path = db.format_abspath(book_id, "PDF")
+        if len(formats) == 0:
+            return f"results.push(`[跳过] {repr(metadata.title)} 无可用格式`);"
+        if "PDF" in formats:
+            file_path = db.format_abspath(book_id, "PDF")
+        else:
+            file_path = db.format_abspath(book_id, formats[0])
 
         title = metadata.title
         book_uuid = metadata.uuid
@@ -185,7 +188,6 @@ class LinkToZoteroAction(InterfaceAction):
 
         tpl = get_js_template(self, "sync_check.js")
         js_code = tpl.replace("__CALIBRE_MARKED_UUIDS__", json.dumps(marked_uuids))
-        default_log.warn(js_code)
 
         self._show_and_listen(js_code, "双向同步检查")
 
@@ -266,7 +268,6 @@ class LinkToZoteroAction(InterfaceAction):
 
         # 复制并关闭按钮
         btn = QPushButton("复制到剪贴板并关闭", d)
-        btn.setStyleSheet("height: 30px; font-size: 14px;")
 
         def copy_and_close():
             # 使用 Qt 的剪贴板

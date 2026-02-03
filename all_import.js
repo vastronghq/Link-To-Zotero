@@ -2,6 +2,26 @@ let results = ['🚀 Link To Zotero 开始导入...', '-------------------------
 let succeed_book_uuids = [];
 let skipped_book_uuids = [];
 let failed_book_uuids = [];
+const mimeTypes = {
+  // Kindle/Amazon 格式
+  '.azw': 'application/vnd.amazon.ebook', // Kindle 7 及之前版本
+  '.azw3': 'application/vnd.amazon.mobi8-ebook', // KF8 格式，Kindle 8+ 支持
+  '.kfx': 'application/vnd.amazon.ebook', // Kindle Format X，最新格式
+  // 通用电子书格式
+  '.mobi': 'application/x-mobipocket-ebook',
+  '.epub': 'application/epub+zip',
+  '.pdf': 'application/pdf',
+  // 文档格式
+  '.pdf': 'application/pdf',
+  '.txt': 'text/plain',
+  '.rtf': 'application/rtf',
+  '.doc': 'application/msword',
+  '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  // 其他电子书格式
+  '.fb2': 'text/xml', // 或 'application/x-fictionbook+xml'
+  '.cbr': 'application/x-cbr',
+  '.cbz': 'application/x-cbz',
+};
 
 // --- 查重处理 ---
 let existing_uuids = new Set();
