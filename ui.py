@@ -74,22 +74,42 @@ class LinkToZoteroAction(InterfaceAction):
         db = self.gui.current_db.new_api
         is_exist = "#in_zotero" in db.field_metadata.custom_field_keys()
         if not is_exist:
-            default_log.warn("未检测到 '#in_zotero' 自定义列，尝试创建...")
-            # 创建自定义列
-            db.create_custom_column(
-                label="in_zotero",
-                name="In Zotero",
-                datatype="bool",
-                is_multiple=False,
-                display={},
-            )
-            info_dialog(
+            if question_dialog(
                 self.gui,
-                "初始化",
-                "已为您创建 '#in_zotero' 自定义列，请**重启 Calibre** 以启用同步功能。",
-                show=True,
-            )
-        return is_exist
+                "初始化确认",
+                '插件需要创建一个自定义列 "#in_zotero" 用于记录同步状态。<br><br>'
+                "是否现在创建？(创建后需要重启 Calibre)",
+                yes_text="立即创建",
+                no_text="稍后再说",
+            ):
+                # 创建自定义列
+                try:
+                    db.create_custom_column(
+                        label="in_zotero",
+                        name="In Zotero",
+                        datatype="bool",
+                        is_multiple=False,
+                        display={},
+                    )
+                    info_dialog(
+                        self.gui,
+                        "初始化成功",
+                        '已为您创建 "#in_zotero" 自定义列<br><br>'
+                        "请重启 Calibre 以激活该列。",
+                        show=True,
+                    )
+                except Exception as e:
+                    error_dialog(
+                        self.gui,
+                        "初始化失败",
+                        f"创建自定义列失败：{e}",
+                        show=True,
+                    )
+                # 只要进到这个 if 分支，说明当前环境肯定没准备好（要么没创建，要么刚创建完还没重启）
+                return False
+            else:
+                return False
+        return True
 
     def add_menu(self, text, icon, tooltip, action):
         uni_name = menu_action_unique_name(self, text)
