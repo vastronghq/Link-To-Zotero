@@ -34,7 +34,7 @@ class LinkToZoteroAction(InterfaceAction):
     # 注意：这里的图标路径是相对于插件包根目录的默认位置
     action_spec = (
         "Link To Zotero",
-        "images/link_icon_2.png",
+        "images/icon_6.png",
         "同步选中书籍到 Zotero",
         None,
     )
@@ -47,7 +47,7 @@ class LinkToZoteroAction(InterfaceAction):
         # get_icons 是 Calibre 内置函数，专门从插件 zip 包中提取图片
         # 参数 1: images 文件夹下的文件名
         # 参数 2: 该图标在内存中的唯一标识字符串
-        icon_interface = get_icons("images/icon_2.png", "icon_main")
+        icon_interface = get_icons("images/icon_6.png", "icon_main")
         icon_sync = get_icons("images/icon_3.png", "icon_sync")
         self.qaction.setIcon(icon_interface)
         # self._check_and_create_column()
