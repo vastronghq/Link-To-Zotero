@@ -4,7 +4,7 @@
  * @Software     : VScode
  * @Author       : hqwang
  * @Date         : 2026-02-02 22:49:27
- * @LastEditTime : 2026-02-03 07:44:25
+ * @LastEditTime : 2026-02-06 11:56:08
  * @Description  :
  */
 let results = ['🔍 Link To Zotero 开始双向同步检查...', '--------------------------'];
@@ -30,7 +30,9 @@ let zotero_ids_to_trash = [];
 for (let [uuid, item] of zotero_uuid_map) {
   if (!calibre_marked_uuids.includes(uuid)) {
     zotero_ids_to_trash.push(item.id);
-    results.push(`🗑️【${item.getField('title')}】：Calibre 端无此条目或标记取消，Zotero 端已同步删除`);
+    results.push(
+      `🗑️ ${new Date().toLocaleTimeString()} 【${item.getField('title')}】 Calibre 端标记取消或无此条目，Zotero 端已同步删除`,
+    );
   }
 }
 
@@ -38,14 +40,16 @@ if (zotero_ids_to_trash.length > 0) {
   await Zotero.DB.executeTransaction(async () => {
     await Zotero.Items.trash(zotero_ids_to_trash);
   });
-  results.push(`✅ 成功将 ${zotero_ids_to_trash.length} 个无效条目移至回收站`);
+  results.push(`✅ 处理完成，已将 ${zotero_ids_to_trash.length} 个无效条目移至回收站`);
 }
 
 // 3. 场景 B：Zotero 侧删了 -> 告知 Calibre 取消勾选
 for (let uuid of calibre_marked_uuids) {
   if (!zotero_uuid_map.has(uuid)) {
     uuids_deleted_in_zotero.push(uuid);
-    results.push(`⚠️ calibre uuid ${uuid}： 此条目在 Zotero 端不存在，将在 Calibre 端取消标记`);
+    results.push(
+      `⚠️ ${new Date().toLocaleTimeString()} calibre uuid ${uuid} 此条目在 Zotero 端不存在，将在 Calibre 端取消标记`,
+    );
   }
 }
 
@@ -61,6 +65,6 @@ results.push('--------------------------');
 if (zotero_ids_to_trash.length === 0 && uuids_deleted_in_zotero.length === 0) {
   results.push(`✅ 检查完毕，所有记录状态一致，无需进一步操作。`);
 } else {
-  results.push(`✅ 检查完毕，请回到 Calibre 处理回传数据。`);
+  results.push(`✅ 检查完毕，请回到 Calibre 更新同步状态。`);
 }
 return results.join('\n');
