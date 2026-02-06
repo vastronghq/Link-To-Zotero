@@ -6,7 +6,6 @@
   // 1. 初始判定
   if (existing_uuid_items.has(__BOOK_UUID__)) {
     item = existing_uuid_items.get(__BOOK_UUID__);
-    itemID = item.id;
     isUpdate = true;
 
     // 如果是更新模式，先删除旧的 PDF 附件，否则附件会越来越多
@@ -41,12 +40,9 @@
     item.setField('abstractNote', __ABSTRACT_TEXT__);
     item.setField('callNumber', 'calibre uuid: ' + __BOOK_UUID__);
 
-    // 执行保存 (如果没变 saveTx 会返回 false，但没关系)
-    if (!isUpdate) {
-      itemID = await item.saveTx();
-    } else {
-      await item.saveTx();
-    }
+    // 执行保存 (如果没变，saveTx 会返回 false，但没关系)
+    await item.saveTx();
+    itemID = item.id;
 
     // 链接附件
     const ext = __FILE_PATH__.substring(__FILE_PATH__.lastIndexOf('.')).toLowerCase();
@@ -57,11 +53,19 @@
       contentType: mimeType,
     });
 
+    // 记录附件对应的 storage 目录（条目也有 Key，但是我发现实际上没有对应目录生成）
+    // 每次添加附件，其对应的 storage 目录都会变化
+    // 可以随意删除附件的 storage 目录，标注是存在数据库里，不会消失，可能阅读进度会消失
+    let attachments = item.getAttachments();
+    if (attachments.length > 0) {
+      let mainAtt = Zotero.Items.get(attachments[0]);
+      let attKey = mainAtt.key; // 获取附件的 Key
+      item.setField('extra', attKey);
+      await item.saveTx({ skipNotifier: true });
+    }
     // 5. 更新时间戳 (主条目及新链接的附件)
     let idsToUpdateTimestamp = [itemID];
     // 获取并包含所有附件的 ID (确保附件时间也被修正)
-    let itemObj = Zotero.Items.get(itemID);
-    let attachments = itemObj.getAttachments();
     if (attachments.length > 0) {
       idsToUpdateTimestamp.push(...attachments);
     }
