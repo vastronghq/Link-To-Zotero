@@ -60,7 +60,7 @@
     if (attachments.length > 0) {
       let mainAtt = Zotero.Items.get(attachments[0]);
       let attKey = mainAtt.key; // 获取附件的 Key
-      item.setField('extra', attKey);
+      item.setField('extra', `totalPages: __PAGES__; attKey: ${attKey}`);
       await item.saveTx({ skipNotifier: true });
     }
     // 5. 更新时间戳 (主条目及新链接的附件)

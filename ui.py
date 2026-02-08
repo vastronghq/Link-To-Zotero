@@ -184,6 +184,9 @@ class LinkToZoteroAction(InterfaceAction):
             convert_html_to_text(metadata.comments) if metadata.comments else ""
         )
         collection = db.field_for("#collection", book_id)
+        pages = (
+            metadata.pages if metadata.pages and metadata.pages >= 0 else ""
+        )  # 这个字段是calibre自带的，不是count pages插件的
 
         tpl = get_js_template(self, "single_import.js")
         # 填充元数据
@@ -201,6 +204,7 @@ class LinkToZoteroAction(InterfaceAction):
         tpl = tpl.replace("__INDEX__", repr(index))
         tpl = tpl.replace("__TOTAL__", repr(total))
         tpl = tpl.replace("__COLLECTION__", json.dumps(collection))
+        tpl = tpl.replace("__PAGES__", repr(pages))
         return tpl
 
     # --- 核心逻辑 B：检查脚本生成 ---
