@@ -3,6 +3,7 @@
   let item;
   let itemID;
   let isUpdate;
+  let title_log = __TITLE__.substring(0, 50);
   // 1. 初始判定
   if (existing_uuid_items.has(__BOOK_UUID__)) {
     item = existing_uuid_items.get(__BOOK_UUID__);
@@ -79,15 +80,28 @@
     Zotero.Notifier.trigger('modify', 'item', idsToUpdateTimestamp);
     if (isUpdate) {
       updated_book_uuids.push(__BOOK_UUID__);
-      results.push(`🔄 ${new Date().toLocaleTimeString()} [更新] 【__TITLE__】 (calibre id: __BOOK_ID__) 元数据已更新`);
+      log.push(
+        `🔄 ${new Date().toLocaleTimeString()} [更新] 【${title_log}...】 (calibre id: __BOOK_ID__) 元数据已更新`,
+      );
+      progressWin.addDescription(
+        `🔄 ${new Date().toLocaleTimeString()} [更新] 【${title_log}...】 (calibre id: __BOOK_ID__) 元数据已更新`,
+      );
     } else {
       new_book_uuids.push(__BOOK_UUID__);
-      results.push(`✅ ${new Date().toLocaleTimeString()} [新增] 【__TITLE__】 (calibre id: __BOOK_ID__) 已导入并链接`);
+      log.push(
+        `✅ ${new Date().toLocaleTimeString()} [新增] 【${title_log}...】 (calibre id: __BOOK_ID__) 已导入并链接`,
+      );
+      progressWin.addDescription(
+        `✅ ${new Date().toLocaleTimeString()} [新增] 【${title_log}...】 (calibre id: __BOOK_ID__) 已导入并链接`,
+      );
     }
   } catch (e) {
     failed_book_uuids.push(__BOOK_UUID__);
-    results.push(
-      `❌ ${new Date().toLocaleTimeString()} [失败] 【__TITLE__】 (calibre id: __BOOK_ID__) 导入失败：${e.toString()}`,
+    log.push(
+      `❌ ${new Date().toLocaleTimeString()} [失败] 【${title_log}...】 (calibre id: __BOOK_ID__) 导入失败：${e.toString()}`,
+    );
+    progressWin.addDescription(
+      `❌ ${new Date().toLocaleTimeString()} [失败] 【${title_log}...】 (calibre id: __BOOK_ID__) 导入失败：${e.toString()}`,
     );
   }
 }

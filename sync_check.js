@@ -4,10 +4,18 @@
  * @Software     : VScode
  * @Author       : hqwang
  * @Date         : 2026-02-02 22:49:27
- * @LastEditTime : 2026-02-06 11:56:08
+ * @LastEditTime : 2026-02-08 10:21:18
  * @Description  :
  */
-let results = ['🔍 Link To Zotero 开始双向同步检查...', '--------------------------'];
+let progressWin = new Zotero.ProgressWindow();
+progressWin.changeHeadline('Link To Zotero');
+progressWin.show();
+// 定义一个图标项，用于显示当前处理进度
+let itemProgress = new progressWin.ItemProgress(
+  'chrome://zotero/skin/treeitem-book.png',
+  '🚀 Link To Zotero 开始同步检查...',
+);
+let log = ['🔍 Link To Zotero 开始同步检查...', '--------------------------'];
 let uuids_deleted_in_zotero = [];
 let calibre_marked_uuids = __CALIBRE_MARKED_UUIDS__; // 全量列表
 
@@ -30,7 +38,10 @@ let zotero_ids_to_trash = [];
 for (let [uuid, item] of zotero_uuid_map) {
   if (!calibre_marked_uuids.includes(uuid)) {
     zotero_ids_to_trash.push(item.id);
-    results.push(
+    log.push(
+      `🗑️ ${new Date().toLocaleTimeString()} 【${item.getField('title')}】 Calibre 端标记取消或无此条目，Zotero 端已同步删除`,
+    );
+    progressWin.addDescription(
       `🗑️ ${new Date().toLocaleTimeString()} 【${item.getField('title')}】 Calibre 端标记取消或无此条目，Zotero 端已同步删除`,
     );
   }
@@ -40,14 +51,18 @@ if (zotero_ids_to_trash.length > 0) {
   await Zotero.DB.executeTransaction(async () => {
     await Zotero.Items.trash(zotero_ids_to_trash);
   });
-  results.push(`✅ 处理完成，已将 ${zotero_ids_to_trash.length} 个无效条目移至回收站`);
+  log.push(`✅ 处理完成，已将 ${zotero_ids_to_trash.length} 个无效条目移至回收站`);
+  progressWin.addDescription(`✅ 处理完成，已将 ${zotero_ids_to_trash.length} 个无效条目移至回收站`);
 }
 
 // 3. 场景 B：Zotero 侧删了 -> 告知 Calibre 取消勾选
 for (let uuid of calibre_marked_uuids) {
   if (!zotero_uuid_map.has(uuid)) {
     uuids_deleted_in_zotero.push(uuid);
-    results.push(
+    log.push(
+      `⚠️ ${new Date().toLocaleTimeString()} calibre uuid ${uuid} 此条目在 Zotero 端不存在，将在 Calibre 端取消标记`,
+    );
+    progressWin.addDescription(
       `⚠️ ${new Date().toLocaleTimeString()} calibre uuid ${uuid} 此条目在 Zotero 端不存在，将在 Calibre 端取消标记`,
     );
   }
@@ -60,11 +75,18 @@ let feedback = {
 };
 Zotero.Utilities.Internal.copyTextToClipboard(JSON.stringify(feedback));
 
-results.push('--------------------------');
+log.push('--------------------------');
+progressWin.addDescription('--------------------------');
 
 if (zotero_ids_to_trash.length === 0 && uuids_deleted_in_zotero.length === 0) {
-  results.push(`✅ 检查完毕，所有记录状态一致，无需进一步操作。`);
+  log.push(`✅ 检查完毕，所有记录状态一致，无需进一步操作。`);
+  progressWin.addDescription(`✅ 检查完毕，所有记录状态一致，无需进一步操作。`);
 } else {
-  results.push(`✅ 检查完毕，请回到 Calibre 更新同步状态。`);
+  log.push(`✅ 检查完毕，请回到 Calibre 更新同步状态。`);
+  progressWin.addDescription(`✅ 检查完毕，请回到 Calibre 更新同步状态。`);
 }
-return results.join('\n');
+
+itemProgress.setProgress(100);
+itemProgress.setText('同步检查已完成！');
+
+return log.join('\n');

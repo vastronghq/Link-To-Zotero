@@ -1,4 +1,12 @@
-let results = ['🚀 Link To Zotero 开始导入...', '--------------------------'];
+let progressWin = new Zotero.ProgressWindow();
+progressWin.changeHeadline('Link To Zotero');
+progressWin.show();
+// 定义一个图标项，用于显示当前处理进度
+let itemProgress = new progressWin.ItemProgress(
+  'chrome://zotero/skin/treeitem-book.png',
+  '🚀 Link To Zotero 开始导入书籍...',
+);
+let log = ['🚀 Link To Zotero 开始导入书籍...', '--------------------------'];
 let new_book_uuids = [];
 let updated_book_uuids = [];
 let failed_book_uuids = [];
@@ -43,8 +51,19 @@ let feedback = {
 };
 Zotero.Utilities.Internal.copyTextToClipboard(JSON.stringify(feedback));
 
-results.push('--------------------------');
-results.push(
-  `✅ 处理完成，新增：${new_book_uuids.length}，更新：${updated_book_uuids.length}，失败：${failed_book_uuids.length}。`,
+log.push('--------------------------');
+log.push(
+  `✅ 处理完成，新增：${new_book_uuids.length}，更新：${updated_book_uuids.length}，失败：${failed_book_uuids.length}`,
 );
-return results.join('\n');
+
+progressWin.addDescription('--------------------------------');
+progressWin.addDescription(
+  `✅ 处理完成，新增：${new_book_uuids.length}，更新：${updated_book_uuids.length}，失败：${failed_book_uuids.length}`,
+);
+
+itemProgress.setProgress(100);
+itemProgress.setText('导入任务已完成！');
+
+// 5秒后自动关闭进度窗口
+// progressWin.startCloseTimer(5000);
+return log.join('\n');
