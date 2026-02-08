@@ -2,28 +2,11 @@
 {
   let item;
   let itemID;
-  let isUpdate = false;
+  let isUpdate;
   // 1. 初始判定
   if (existing_uuid_items.has(__BOOK_UUID__)) {
     item = existing_uuid_items.get(__BOOK_UUID__);
     isUpdate = true;
-
-    // 如果是更新模式，先删除旧的 PDF 附件，否则附件会越来越多
-    let oldAttachments = item.getAttachments();
-    let idsToTrash = [];
-    for (let attID of oldAttachments) {
-      let att = Zotero.Items.get(attID);
-      // 只要附件不是笔记，就标记删除
-      if (att.isAttachment() && !att.isNote()) {
-        idsToTrash.push(attID);
-      }
-    }
-    if (idsToTrash.length > 0) {
-      // 将旧附件移至回收站
-      await Zotero.DB.executeTransaction(async () => {
-        await Zotero.Items.trash(idsToTrash);
-      });
-    }
   } else {
     item = new Zotero.Item('book');
     isUpdate = false;
@@ -40,22 +23,38 @@
     item.setField('abstractNote', __ABSTRACT_TEXT__);
     item.setField('callNumber', 'calibre uuid: ' + __BOOK_UUID__);
 
-    // 执行保存 (如果没变，saveTx 会返回 false，但没关系)
+    // 执行保存
     await item.saveTx();
     itemID = item.id;
 
     // 链接附件
-    const ext = __FILE_PATH__.substring(__FILE_PATH__.lastIndexOf('.')).toLowerCase();
-    const mimeType = mimeTypes[ext] || 'application/octet-stream';
-    await Zotero.Attachments.linkFromFile({
-      file: __FILE_PATH__,
-      parentItemID: itemID,
-      contentType: mimeType,
-    });
-
+    if (!isUpdate) {
+      const ext = __FILE_PATH__.substring(__FILE_PATH__.lastIndexOf('.')).toLowerCase();
+      const mimeType = mimeTypes[ext] || 'application/octet-stream';
+      await Zotero.Attachments.linkFromFile({
+        file: __FILE_PATH__,
+        parentItemID: itemID,
+        contentType: mimeType,
+      });
+    } else {
+      // 对于更新操作，原来的重链接方式会导致标注丢失，故该用修改链接路径的方式，一方面可以保留标注，另一方面可以应对Calire把PDF文件重命名了的情况
+      // 只要还是同一份PDF，标注就能正确显示在PDF上，否则，标注会错位
+      // 此外，saveTx()方法会根据Zotero中“链接文件根路径”的设置决定是存储绝对路径还是存储相对路径，无需担心
+      let attachmentIDs = item.getAttachments();
+      if (attachmentIDs.length > 0) {
+        for (let attID of attachmentIDs) {
+          let att = Zotero.Items.get(attID);
+          // 确保它是我们要找的链接文件附件
+          if (att.isAttachment() && !att.isNote()) {
+            // 核心操作：直接修改附件的 path 字段
+            att.attachmentPath = __FILE_PATH__;
+            await att.saveTx();
+          }
+        }
+      }
+    }
     // 记录附件对应的 storage 目录（条目也有 Key，但是我发现实际上没有对应目录生成）
-    // 每次添加附件，其对应的 storage 目录都会变化
-    // 可以随意删除附件的 storage 目录，标注是存在数据库里，不会消失，可能阅读进度会消失
+    // 可以随意删除附件的 storage 目录，标注是存在数据库里，不会消失，但是存储在.zotero-reader-state文件里的阅读进度会消失
     let attachments = item.getAttachments();
     if (attachments.length > 0) {
       let mainAtt = Zotero.Items.get(attachments[0]);
@@ -82,7 +81,7 @@
       updated_book_uuids.push(__BOOK_UUID__);
       results.push(`🔄 ${new Date().toLocaleTimeString()} [更新] 【__TITLE__】 (calibre id: __BOOK_ID__) 元数据已更新`);
     } else {
-      added_book_uuids.push(__BOOK_UUID__);
+      new_book_uuids.push(__BOOK_UUID__);
       results.push(`✅ ${new Date().toLocaleTimeString()} [新增] 【__TITLE__】 (calibre id: __BOOK_ID__) 已导入并链接`);
     }
   } catch (e) {

@@ -1,3 +1,9 @@
-let a = [1, 3, 4];
-let b = [3, 4, 5];
-console.log([...a, ...b]);
+let a = {
+  a: 1,
+  b: 2,
+  c: 'asdf',
+};
+
+a.b = 7867;
+
+console.log(a);

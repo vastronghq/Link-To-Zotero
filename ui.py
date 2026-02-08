@@ -245,7 +245,7 @@ class LinkToZoteroAction(InterfaceAction):
         if deleted_uuids:
             items_html = "".join(
                 [
-                    f"<li>{i + 1}. {db.get_metadata(uuid_id[uuid]).title}</li>"
+                    f"<li>{db.get_metadata(uuid_id[uuid]).title}</li>"
                     for i, uuid in enumerate(deleted_uuids[:5])
                 ]
             )
