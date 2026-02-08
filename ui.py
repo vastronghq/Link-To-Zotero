@@ -148,7 +148,7 @@ class LinkToZoteroAction(InterfaceAction):
         # 2. 遍历每一本书
         for i, row in enumerate(rows):
             book_id = self.gui.library_view.model().id(row.row())
-            script = self._build_single_book_js(db, book_id, i, len(rows))
+            script = self._build_single_book_js(db, book_id, i + 1, len(rows))
             if script:
                 book_scripts.append(script)
         final_template = get_js_template(self, "all_import.js")
