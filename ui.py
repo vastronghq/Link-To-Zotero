@@ -148,15 +148,14 @@ class LinkToZoteroAction(InterfaceAction):
         # 2. 遍历每一本书
         for i, row in enumerate(rows):
             book_id = self.gui.library_view.model().id(row.row())
-            script = self._build_single_book_js(db, book_id, i + 1, len(rows))
-            if script:
-                book_scripts.append(script)
+            script_import = self._build_single_import_js(db, book_id, i + 1, len(rows))
+            book_scripts.append(script_import)
         final_template = get_js_template(self, "all_import.js")
         js_code = final_template.replace("__ALL_BOOKS_JS__", "\n".join(book_scripts))
 
         self._show_and_listen(js_code, f"导入 {len(rows)} 本书籍")
 
-    def _build_single_book_js(self, db, book_id, index, total):
+    def _build_single_import_js(self, db, book_id, index, total):
         metadata = db.get_metadata(book_id)
         formats = db.formats(book_id)
         if len(formats) == 0:
@@ -184,6 +183,7 @@ class LinkToZoteroAction(InterfaceAction):
         abstract_text = (
             convert_html_to_text(metadata.comments) if metadata.comments else ""
         )
+        collection = db.field_for("#collection", book_id)
 
         tpl = get_js_template(self, "single_import.js")
         # 填充元数据
@@ -200,6 +200,7 @@ class LinkToZoteroAction(InterfaceAction):
         tpl = tpl.replace("__BOOK_UUID__", repr(book_uuid))
         tpl = tpl.replace("__INDEX__", repr(index))
         tpl = tpl.replace("__TOTAL__", repr(total))
+        tpl = tpl.replace("__COLLECTION__", json.dumps(collection))
         return tpl
 
     # --- 核心逻辑 B：检查脚本生成 ---
