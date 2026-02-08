@@ -1,5 +1,5 @@
 let results = ['🚀 Link To Zotero 开始导入...', '--------------------------'];
-let added_book_uuids = [];
+let new_book_uuids = [];
 let updated_book_uuids = [];
 let failed_book_uuids = [];
 const mimeTypes = {
@@ -38,13 +38,13 @@ __ALL_BOOKS_JS__;
 let feedback = {
   source: 'Link To Zotero',
   action: 'import',
-  succeed_book_uuids: [...added_book_uuids, ...updated_book_uuids],
+  succeed_book_uuids: [...new_book_uuids, ...updated_book_uuids],
   failed_book_uuids: failed_book_uuids,
 };
 Zotero.Utilities.Internal.copyTextToClipboard(JSON.stringify(feedback));
 
 results.push('--------------------------');
 results.push(
-  `✅ 处理完成，新增：${added_book_uuids.length}，更新：${updated_book_uuids.length}，失败：${failed_book_uuids.length}。`,
+  `✅ 处理完成，新增：${new_book_uuids.length}，更新：${updated_book_uuids.length}，失败：${failed_book_uuids.length}。`,
 );
 return results.join('\n');
