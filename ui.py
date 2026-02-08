@@ -146,9 +146,9 @@ class LinkToZoteroAction(InterfaceAction):
         book_scripts = []
 
         # 2. 遍历每一本书
-        for row in rows:
+        for i, row in enumerate(rows):
             book_id = self.gui.library_view.model().id(row.row())
-            script = self._build_single_book_js(db, book_id)
+            script = self._build_single_book_js(db, book_id, i, len(rows))
             if script:
                 book_scripts.append(script)
         final_template = get_js_template(self, "all_import.js")
@@ -156,7 +156,7 @@ class LinkToZoteroAction(InterfaceAction):
 
         self._show_and_listen(js_code, f"导入 {len(rows)} 本书籍")
 
-    def _build_single_book_js(self, db, book_id):
+    def _build_single_book_js(self, db, book_id, index, total):
         metadata = db.get_metadata(book_id)
         formats = db.formats(book_id)
         if len(formats) == 0:
@@ -198,6 +198,8 @@ class LinkToZoteroAction(InterfaceAction):
         tpl = tpl.replace("__TIMESTAMP__", repr(timestamp))
         tpl = tpl.replace("__BOOK_ID__", repr(book_id))
         tpl = tpl.replace("__BOOK_UUID__", repr(book_uuid))
+        tpl = tpl.replace("__INDEX__", repr(index))
+        tpl = tpl.replace("__TOTAL__", repr(total))
         return tpl
 
     # --- 核心逻辑 B：检查脚本生成 ---

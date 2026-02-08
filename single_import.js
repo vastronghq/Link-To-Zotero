@@ -81,27 +81,27 @@
     if (isUpdate) {
       updated_book_uuids.push(__BOOK_UUID__);
       log.push(
-        `🔄 ${new Date().toLocaleTimeString()} [更新] 【${title_log}...】 (calibre id: __BOOK_ID__) 元数据已更新`,
+        `🔄 [__INDEX__/__TOTAL__] ${new Date().toLocaleTimeString()} [更新] 【${title_log}...】 (calibre id: __BOOK_ID__) 元数据已更新`,
       );
       progressWin.addDescription(
-        `🔄 ${new Date().toLocaleTimeString()} [更新] 【${title_log}...】 (calibre id: __BOOK_ID__) 元数据已更新`,
+        `🔄 [__INDEX__/__TOTAL__] ${new Date().toLocaleTimeString()} [更新] 【${title_log}...】 (calibre id: __BOOK_ID__) 元数据已更新`,
       );
     } else {
       new_book_uuids.push(__BOOK_UUID__);
       log.push(
-        `✅ ${new Date().toLocaleTimeString()} [新增] 【${title_log}...】 (calibre id: __BOOK_ID__) 已导入并链接`,
+        `✅ [__INDEX__/__TOTAL__] ${new Date().toLocaleTimeString()} [新增] 【${title_log}...】 (calibre id: __BOOK_ID__) 已导入并链接`,
       );
       progressWin.addDescription(
-        `✅ ${new Date().toLocaleTimeString()} [新增] 【${title_log}...】 (calibre id: __BOOK_ID__) 已导入并链接`,
+        `✅ [__INDEX__/__TOTAL__] ${new Date().toLocaleTimeString()} [新增] 【${title_log}...】 (calibre id: __BOOK_ID__) 已导入并链接`,
       );
     }
   } catch (e) {
     failed_book_uuids.push(__BOOK_UUID__);
     log.push(
-      `❌ ${new Date().toLocaleTimeString()} [失败] 【${title_log}...】 (calibre id: __BOOK_ID__) 导入失败：${e.toString()}`,
+      `❌ [__INDEX__/__TOTAL__] ${new Date().toLocaleTimeString()} [失败] 【${title_log}...】 (calibre id: __BOOK_ID__) 导入失败：${e.toString()}`,
     );
     progressWin.addDescription(
-      `❌ ${new Date().toLocaleTimeString()} [失败] 【${title_log}...】 (calibre id: __BOOK_ID__) 导入失败：${e.toString()}`,
+      `❌ [__INDEX__/__TOTAL__] ${new Date().toLocaleTimeString()} [失败] 【${title_log}...】 (calibre id: __BOOK_ID__) 导入失败：${e.toString()}`,
     );
   }
 }
