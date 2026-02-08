@@ -104,4 +104,55 @@
       `❌ [__INDEX__/__TOTAL__] ${new Date().toLocaleTimeString()} [失败] 【${title_log}...】 (calibre id: __BOOK_ID__) 导入失败：${e.toString()}`,
     );
   }
+
+  if (true) {
+    // 克隆分类
+    if (__COLLECTION__) {
+      for (let col of __COLLECTION__) {
+        let parts = col.split('.');
+        let libraryID = ZoteroPane.getSelectedLibraryID();
+        let currentParentID = null;
+
+        for (let segment of parts) {
+          let existingCollections;
+
+          // 1. 根据层级获取“同级”分类
+          if (currentParentID === null) {
+            // 顶级
+            existingCollections = Zotero.Collections.getByLibrary(libraryID);
+          } else {
+            // 子级
+            existingCollections = Zotero.Collections.getByParent(currentParentID);
+          }
+
+          // 2. 查找同名分类
+          let target = existingCollections.find((c) => c.name === segment);
+
+          if (target) {
+            currentParentID = target.id;
+          } else {
+            // 3. 创建新分类
+            let newCol = new Zotero.Collection();
+            newCol.name = segment;
+
+            if (currentParentID === null) {
+              newCol.libraryID = libraryID;
+            } else {
+              newCol.parentID = currentParentID;
+            }
+
+            currentParentID = await newCol.saveTx();
+          }
+        }
+
+        // 4. 把 item 加入最终分类
+        if (!item.inCollection(currentParentID)) {
+          item.addToCollection(currentParentID);
+        }
+      }
+
+      // 5. 必须保存 item
+      await item.saveTx();
+    }
+  }
 }
