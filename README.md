@@ -1,8 +1,6 @@
 # Link To Zotero
 
-https://img.shields.io/badge/License-MIT-green.svg
-https://img.shields.io/badge/Zotero-8.0.x-blue
-https://img.shields.io/badge/Calibre-9.0.x-orange
+![](https://img.shields.io/badge/License-MIT-green.svg)![](https://img.shields.io/badge/Zotero-8.0.x-blue)![](https://img.shields.io/badge/Calibre-9.0.x-orange)
 
 Import PDF books from Calibre to Zotero as linked files with most metadata preserved.
 
