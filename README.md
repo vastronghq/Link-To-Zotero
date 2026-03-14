@@ -8,14 +8,14 @@ Import PDF books from Calibre to Zotero as linked files with most metadata prese
 
 ![](./screenshot.png)
 
-## ✨ Features
+## Features
 
-- **📤 One-Click Import** - Generate JavaScript scripts to import PDFs from Calibre to Zotero
-- **🔄 Sync Status Tracking** - Generate scripts to check import status and sync progress
-- **📚 Metadata Preservation** - Maintains book metadata (title, author, tags, etc.) during transfer
-- **⚡ Batch Processing** - Import multiple PDFs at once with automatic metadata mapping
+- **One-Click Import** - Generate JavaScript scripts to import PDFs from Calibre to Zotero
+- **Sync Status Tracking** - Generate scripts to check import status and sync progress
+- **Metadata Preservation** - Maintains book metadata (title, author, tags, etc.) during transfer
+- **Batch Processing** - Import multiple PDFs at once with automatic metadata mapping
 
-## 🚀 How It Works
+## How It Works
 
 This plugin creates JavaScript bridge scripts that:
 
