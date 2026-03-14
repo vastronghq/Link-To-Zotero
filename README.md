@@ -4,7 +4,7 @@
 
 Import PDF books from Calibre to Zotero as linked files with most metadata preserved.
 
-> Inspired by [ZMI](https://forums.zotero.org/discussion/60898/calibre-zotero-metadata-importer-plug-in))
+> Inspired by [ZMI](https://forums.zotero.org/discussion/60898/calibre-zotero-metadata-importer-plug-in)
 
 ![](./screenshot.png)
 
