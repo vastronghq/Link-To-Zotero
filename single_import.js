@@ -110,7 +110,7 @@
     if (__COLLECTION__) {
       for (let col of __COLLECTION__) {
         let parts = col.split('.');
-        let libraryID = ZoteroPane.getSelectedLibraryID();
+        let libraryID = ZoteroPane.getSelectedLibraryIDs();
         let currentParentID = null;
 
         for (let segment of parts) {
